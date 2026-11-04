@@ -24,6 +24,7 @@ export default function Caja({ active, onLoadNewCode }) {
   const [toast, setToast] = useState(null)
   const [lastId, setLastId] = useState(null)
   const [notFound, setNotFound] = useState(null)
+  const [noStock, setNoStock] = useState(null) // { product, inCart }
   const [q, setQ] = useState('')
   const [results, setResults] = useState([])
   const [method, setMethod] = useState('efectivo')
@@ -52,13 +53,18 @@ export default function Caja({ active, onLoadNewCode }) {
 
   function addProduct(product) {
     setNotFound(null)
+    setNoStock(null)
+    const qty = (cart.find((i) => i.product.id === product.id)?.qty ?? 0) + 1
+    if (qty > product.stock) {
+      setNoStock({ product, inCart: qty - 1 })
+      showToast(product.stock <= 0 ? 'Sin stock' : `Solo hay ${product.stock}`, 'error')
+      return
+    }
     setLastId(product.id)
-    let qty = 1
     setCart((c) => {
       const idx = c.findIndex((i) => i.product.id === product.id)
       if (idx === -1) return [{ product, qty: 1 }, ...c]
-      qty = c[idx].qty + 1
-      const item = { ...c[idx], qty }
+      const item = { ...c[idx], qty: c[idx].qty + 1, product }
       return [item, ...c.filter((_, i) => i !== idx)] // el último escaneado queda arriba
     })
     showToast(`✔ ${product.name}${qty > 1 ? ` (x${qty})` : ''}`)
@@ -100,6 +106,13 @@ export default function Caja({ active, onLoadNewCode }) {
   }
 
   function setQty(id, qty) {
+    const item = cart.find((i) => i.product.id === id)
+    if (item && qty > item.product.stock) {
+      setNoStock({ product: item.product, inCart: item.qty })
+      showToast(`Solo hay ${item.product.stock}`, 'error')
+      return
+    }
+    setNoStock(null)
     setCart((c) => (qty <= 0 ? c.filter((i) => i.product.id !== id) : c.map((i) => (i.product.id === id ? { ...i, qty } : i))))
   }
 
@@ -129,6 +142,7 @@ export default function Caja({ active, onLoadNewCode }) {
     setPaid('')
     setMethod('efectivo')
     setNotFound(null)
+    setNoStock(null)
     setDone(null)
     setLastId(null)
     setStep('armar')
@@ -242,6 +256,28 @@ export default function Caja({ active, onLoadNewCode }) {
         </div>
       )}
 
+      {noStock && (
+        <div className="msg error with-action">
+          <span>
+            {noStock.product.stock <= 0 ? (
+              <>
+                <b>{noStock.product.name}</b> no tiene stock.
+              </>
+            ) : (
+              <>
+                De <b>{noStock.product.name}</b> solo hay {noStock.product.stock}
+                {noStock.inCart > 0 ? ' y ya están en la venta' : ''}.
+              </>
+            )}
+          </span>
+          {noStock.product.barcode && (
+            <button className="btn small" onClick={() => onLoadNewCode(noStock.product.barcode)}>
+              Cargar stock
+            </button>
+          )}
+        </div>
+      )}
+
       <form className="search" onSubmit={onSearchSubmit}>
         <input
           value={q}
@@ -296,8 +332,7 @@ export default function Caja({ active, onLoadNewCode }) {
                 <div className="cart-info">
                   <span>{product.name}</span>
                   <small className="muted">
-                    {fmtMoney(product.sale_price)} c/u
-                    {product.stock - qty < 0 && <span className="neg"> · sin stock registrado</span>}
+                    {fmtMoney(product.sale_price)} c/u · stock {product.stock}
                   </small>
                 </div>
                 <div className="qty">

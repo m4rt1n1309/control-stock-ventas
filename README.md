@@ -15,6 +15,7 @@ Stack: React + Vite, Supabase (Postgres + login), html5-qrcode. Deploy en Vercel
 
 1. Entrá a https://supabase.com, creá una cuenta y un **New project** (región: São Paulo es la más cercana).
 2. Andá a **SQL Editor → New query**, pegá todo el contenido de `supabase/schema.sql` y tocá **Run**.
+   Después ejecutá, en orden, cada archivo de `supabase/migrations/` (ej: `002_stock_no_negativo.sql`).
 3. **Authentication → Sign In / Providers → Email**: desactivá **"Allow new users to sign up"**
    (así solo entran los usuarios que vos crees).
 4. **Authentication → Users → Add user → Create new user**: creá un usuario (email + contraseña)
@@ -55,5 +56,5 @@ En el celular abrí esa URL y en el menú del navegador elegí **"Agregar a pant
 
 - La cámara **solo funciona con HTTPS** (Vercel ya lo tiene).
 - Las ventas se registran con una función en la base (`register_sale`) que usa los precios guardados, descuenta stock y deja el movimiento, todo junto.
-- El stock puede quedar negativo si vendés algo que no estaba cargado en stock: sirve para darte cuenta de que falta cargar mercadería.
+- No se puede vender ni restar más de lo que hay en stock (lo controla la app y también la base de datos).
 - Cada movimiento de stock (entrada, venta, ajuste) queda registrado con usuario y fecha.
