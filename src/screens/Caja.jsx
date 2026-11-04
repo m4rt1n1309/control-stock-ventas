@@ -4,108 +4,228 @@ import { errorText, findByBarcode, registerSale, searchProducts } from '../lib/a
 import { fmtMoney, parseNumber } from '../lib/format'
 
 const METHODS = [
-  ['efectivo', 'Efectivo'],
-  ['debito', 'Débito'],
-  ['credito', 'Crédito'],
-  ['transferencia', 'Transf. / QR'],
+  ['efectivo', '💵', 'Efectivo'],
+  ['debito', '💳', 'Débito'],
+  ['credito', '💳', 'Crédito'],
+  ['transferencia', '📱', 'Transf. / QR'],
 ]
+const BILLS = [1000, 2000, 5000, 10000, 20000]
 
+/**
+ * Flujo de venta en 3 pasos:
+ *  1. armar: escanear / buscar productos (se suman a la lista)
+ *  2. cobrar: elegir medio de pago, con cuánto paga, vuelto
+ *  3. hecha: confirmación y "Nueva venta"
+ */
 export default function Caja({ active, onLoadNewCode }) {
+  const [step, setStep] = useState('armar')
   const [cart, setCart] = useState([]) // [{ product, qty }]
   const [scanning, setScanning] = useState(false)
   const [toast, setToast] = useState(null)
+  const [lastId, setLastId] = useState(null)
   const [notFound, setNotFound] = useState(null)
   const [q, setQ] = useState('')
   const [results, setResults] = useState([])
   const [method, setMethod] = useState('efectivo')
   const [paid, setPaid] = useState('')
   const [busy, setBusy] = useState(false)
-  const [msg, setMsg] = useState(null)
+  const [error, setError] = useState(null)
+  const [done, setDone] = useState(null) // { id, total, change }
   const toastTimer = useRef(null)
 
+  const units = cart.reduce((s, i) => s + i.qty, 0)
   const total = cart.reduce((s, i) => s + Number(i.product.sale_price) * i.qty, 0)
   const paidNum = parseNumber(paid)
-  const change = method === 'efectivo' && Number.isFinite(paidNum) ? paidNum - total : null
-
-  function showToast(text, type = 'ok') {
-    setToast({ text, type })
-    clearTimeout(toastTimer.current)
-    toastTimer.current = setTimeout(() => setToast(null), 2000)
-  }
-
-  function addProduct(product) {
-    setMsg(null)
-    setCart((c) => {
-      const idx = c.findIndex((i) => i.product.id === product.id)
-      if (idx === -1) return [{ product, qty: 1 }, ...c]
-      const copy = [...c]
-      copy[idx] = { ...copy[idx], qty: copy[idx].qty + 1 }
-      return copy
-    })
-    showToast(`+1 ${product.name}`)
-  }
-
-  async function onScan(code) {
-    setNotFound(null)
-    try {
-      const p = await findByBarcode(code)
-      if (p) addProduct(p)
-      else {
-        setNotFound(code)
-        showToast('Código no encontrado', 'error')
-      }
-    } catch (err) {
-      showToast(errorText(err), 'error')
-    }
-  }
+  const hasPaid = method === 'efectivo' && Number.isFinite(paidNum)
+  const change = hasPaid ? paidNum - total : null
 
   // Apagar la cámara al salir de la pestaña
   useEffect(() => {
     if (!active) setScanning(false)
   }, [active])
 
-  // Búsqueda manual por nombre (productos sin código o que no se leen)
+  function showToast(text, type = 'ok') {
+    setToast({ text, type })
+    clearTimeout(toastTimer.current)
+    toastTimer.current = setTimeout(() => setToast(null), 1800)
+  }
+
+  function addProduct(product) {
+    setNotFound(null)
+    setLastId(product.id)
+    let qty = 1
+    setCart((c) => {
+      const idx = c.findIndex((i) => i.product.id === product.id)
+      if (idx === -1) return [{ product, qty: 1 }, ...c]
+      qty = c[idx].qty + 1
+      const item = { ...c[idx], qty }
+      return [item, ...c.filter((_, i) => i !== idx)] // el último escaneado queda arriba
+    })
+    showToast(`✔ ${product.name}${qty > 1 ? ` (x${qty})` : ''}`)
+  }
+
+  async function addByCode(code) {
+    try {
+      const p = await findByBarcode(code)
+      if (p) addProduct(p)
+      else {
+        setNotFound(code)
+        showToast('Código no cargado', 'error')
+      }
+    } catch (err) {
+      showToast(errorText(err), 'error')
+    }
+  }
+
+  // Búsqueda manual por nombre
   useEffect(() => {
-    if (q.trim().length < 2) return setResults([])
+    if (q.trim().length < 2 || /^\d+$/.test(q.trim())) return setResults([])
     const t = setTimeout(() => {
       searchProducts(q, { limit: 8 }).then(setResults).catch(() => setResults([]))
     }, 250)
     return () => clearTimeout(t)
   }, [q])
 
+  function onSearchSubmit(e) {
+    e.preventDefault()
+    const v = q.trim()
+    if (/^\d{4,}$/.test(v)) {
+      addByCode(v) // escribió el número del código
+      setQ('')
+    } else if (results.length === 1) {
+      addProduct(results[0])
+      setQ('')
+      setResults([])
+    }
+  }
+
   function setQty(id, qty) {
     setCart((c) => (qty <= 0 ? c.filter((i) => i.product.id !== id) : c.map((i) => (i.product.id === id ? { ...i, qty } : i))))
   }
 
+  function goToPay() {
+    setScanning(false)
+    setError(null)
+    setStep('cobrar')
+  }
+
   async function confirmSale() {
-    if (!cart.length) return
-    if (method === 'efectivo' && Number.isFinite(paidNum) && paidNum < total) {
-      return setMsg({ type: 'error', text: 'El pago es menor al total' })
-    }
+    if (hasPaid && paidNum < total) return setError('Con eso no alcanza para el total')
     setBusy(true)
-    setMsg(null)
+    setError(null)
     try {
-      const res = await registerSale(cart, method === 'efectivo' && Number.isFinite(paidNum) ? paidNum : null, method)
-      const vuelto = change !== null && change > 0 ? ` · Vuelto ${fmtMoney(change)}` : ''
-      setMsg({ type: 'ok', text: `Venta #${res.sale_id} registrada: ${fmtMoney(res.total)}${vuelto}` })
-      setCart([])
-      setPaid('')
-      setMethod('efectivo')
-      setNotFound(null)
+      const res = await registerSale(cart, hasPaid ? paidNum : null, method)
+      setDone({ id: res.sale_id, total: res.total, change: hasPaid ? paidNum - Number(res.total) : null })
+      setStep('hecha')
     } catch (err) {
-      setMsg({ type: 'error', text: errorText(err) })
+      setError(errorText(err))
     } finally {
       setBusy(false)
     }
   }
 
+  function newSale() {
+    setCart([])
+    setPaid('')
+    setMethod('efectivo')
+    setNotFound(null)
+    setDone(null)
+    setLastId(null)
+    setStep('armar')
+  }
+
+  // ---------- Paso 3: venta registrada ----------
+  if (step === 'hecha' && done) {
+    return (
+      <div className="screen">
+        <div className="card done">
+          <div className="done-icon">✔</div>
+          <h2>Venta registrada</h2>
+          <p className="muted">Venta #{done.id}</p>
+          <div className="big-amount">{fmtMoney(done.total)}</div>
+          {done.change > 0 && (
+            <div className="change-box">
+              Vuelto: <strong>{fmtMoney(done.change)}</strong>
+            </div>
+          )}
+          <button className="btn primary block big" onClick={newSale}>
+            🛒 Nueva venta
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  // ---------- Paso 2: cobrar ----------
+  if (step === 'cobrar') {
+    return (
+      <div className="screen">
+        <div className="card pay">
+          <p className="muted center">
+            {units} {units === 1 ? 'producto' : 'productos'}
+          </p>
+          <div className="big-amount">{fmtMoney(total)}</div>
+
+          <h3>¿Cómo paga?</h3>
+          <div className="method-grid">
+            {METHODS.map(([v, icon, label]) => (
+              <button key={v} className={method === v ? 'active' : ''} onClick={() => setMethod(v)}>
+                <span>{icon}</span>
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {method === 'efectivo' && (
+            <>
+              <h3>¿Con cuánto paga?</h3>
+              <input
+                value={paid}
+                onChange={(e) => setPaid(e.target.value)}
+                inputMode="decimal"
+                placeholder="Monto (opcional)"
+              />
+              <div className="chips">
+                <button onClick={() => setPaid(String(total))}>Justo</button>
+                {BILLS.filter((b) => b >= total / 4).map((b) => (
+                  <button key={b} onClick={() => setPaid(String(b))}>
+                    {fmtMoney(b).replace(/,00$/, '')}
+                  </button>
+                ))}
+              </div>
+              {change !== null && (
+                <div className={`change-box ${change < 0 ? 'neg' : ''}`}>
+                  {change < 0 ? 'Falta' : 'Vuelto'}: <strong>{fmtMoney(Math.abs(change))}</strong>
+                </div>
+              )}
+            </>
+          )}
+
+          {error && <p className="msg error">{error}</p>}
+
+          <button className="btn success block big" onClick={confirmSale} disabled={busy}>
+            {busy ? 'Registrando…' : '✔ Confirmar venta'}
+          </button>
+          <button className="btn secondary block" onClick={() => setStep('armar')} disabled={busy}>
+            ← Volver y agregar más productos
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  // ---------- Paso 1: armar la venta ----------
   return (
-    <div className="screen">
+    <div className={`screen ${cart.length ? 'with-paybar' : ''}`}>
       {scanning ? (
-        <Scanner onScan={onScan} onClose={() => setScanning(false)} />
+        <Scanner
+          onScan={addByCode}
+          onClose={() => setScanning(false)}
+          hint="Escaneá los productos uno por uno: cada uno se suma a la lista"
+        />
       ) : (
         <button className="btn primary block big" onClick={() => setScanning(true)}>
-          📷 Escanear productos
+          📷 {cart.length ? 'Escanear más productos' : 'Escanear productos'}
         </button>
       )}
 
@@ -122,8 +242,14 @@ export default function Caja({ active, onLoadNewCode }) {
         </div>
       )}
 
-      <div className="search">
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por nombre…" type="search" />
+      <form className="search" onSubmit={onSearchSubmit}>
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="🔎 Buscar por nombre o escribir el código"
+          type="search"
+          enterKeyHint="search"
+        />
         {results.length > 0 && (
           <ul className="list dropdown">
             {results.map((p) => (
@@ -141,78 +267,68 @@ export default function Caja({ active, onLoadNewCode }) {
             ))}
           </ul>
         )}
-      </div>
+      </form>
 
       {cart.length === 0 ? (
-        <p className="empty">El carrito está vacío</p>
-      ) : (
-        <ul className="list cart">
-          {cart.map(({ product, qty }) => (
-            <li key={product.id}>
-              <div className="cart-info">
-                <span>{product.name}</span>
-                <small className="muted">
-                  {fmtMoney(product.sale_price)} c/u
-                  {product.stock - qty < 0 && <span className="neg"> · sin stock registrado</span>}
-                </small>
-              </div>
-              <div className="qty">
-                <button onClick={() => setQty(product.id, qty - 1)} aria-label="Restar">
-                  −
-                </button>
-                <span>{qty}</span>
-                <button onClick={() => setQty(product.id, qty + 1)} aria-label="Sumar">
-                  +
-                </button>
-              </div>
-              <strong className="subtotal">{fmtMoney(product.sale_price * qty)}</strong>
+        <div className="card how-to">
+          <h3>Cómo hacer una venta</h3>
+          <ol>
+            <li>
+              Tocá <b>Escanear productos</b> y pasá <b>todos</b> los productos, uno por uno.
             </li>
-          ))}
-        </ul>
+            <li>Se van sumando a la lista. Si pasás dos veces el mismo, suma cantidad.</li>
+            <li>
+              Cuando terminás, tocá <b>Cobrar</b>.
+            </li>
+          </ol>
+        </div>
+      ) : (
+        <>
+          <div className="list-head">
+            <h3>Productos en esta venta</h3>
+            <button className="btn link" onClick={() => confirm('¿Vaciar la venta?') && newSale()}>
+              Vaciar
+            </button>
+          </div>
+          <ul className="list cart">
+            {cart.map(({ product, qty }) => (
+              <li key={product.id} className={product.id === lastId ? 'just-added' : ''}>
+                <div className="cart-info">
+                  <span>{product.name}</span>
+                  <small className="muted">
+                    {fmtMoney(product.sale_price)} c/u
+                    {product.stock - qty < 0 && <span className="neg"> · sin stock registrado</span>}
+                  </small>
+                </div>
+                <div className="qty">
+                  <button onClick={() => setQty(product.id, qty - 1)} aria-label="Restar">
+                    {qty === 1 ? '🗑' : '−'}
+                  </button>
+                  <span>{qty}</span>
+                  <button onClick={() => setQty(product.id, qty + 1)} aria-label="Sumar">
+                    +
+                  </button>
+                </div>
+                <strong className="subtotal">{fmtMoney(product.sale_price * qty)}</strong>
+              </li>
+            ))}
+          </ul>
+        </>
       )}
 
-      <div className="card checkout">
-        <div className="total">
-          <span>Total</span>
-          <strong>{fmtMoney(total)}</strong>
-        </div>
-
-        <div className="segmented">
-          {METHODS.map(([v, label]) => (
-            <button key={v} className={method === v ? 'active' : ''} onClick={() => setMethod(v)}>
-              {label}
-            </button>
-          ))}
-        </div>
-
-        {method === 'efectivo' && (
-          <>
-            <div className="row2">
-              <input value={paid} onChange={(e) => setPaid(e.target.value)} inputMode="decimal" placeholder="Paga con…" />
-              <button className="btn secondary" onClick={() => setPaid(String(total))} disabled={!total}>
-                Justo
-              </button>
-            </div>
-            {change !== null && (
-              <div className={`total small ${change < 0 ? 'neg' : ''}`}>
-                <span>{change < 0 ? 'Falta' : 'Vuelto'}</span>
-                <strong>{fmtMoney(Math.abs(change))}</strong>
-              </div>
-            )}
-          </>
-        )}
-
-        {msg && <p className={`msg ${msg.type}`}>{msg.text}</p>}
-
-        <div className="actions">
-          <button className="btn secondary" onClick={() => setCart([])} disabled={!cart.length || busy}>
-            Vaciar
-          </button>
-          <button className="btn primary" onClick={confirmSale} disabled={!cart.length || busy}>
-            {busy ? 'Registrando…' : 'Cobrar'}
+      {cart.length > 0 && (
+        <div className="paybar">
+          <div>
+            <small>
+              {units} {units === 1 ? 'producto' : 'productos'}
+            </small>
+            <strong>{fmtMoney(total)}</strong>
+          </div>
+          <button className="btn success big" onClick={goToPay}>
+            Cobrar →
           </button>
         </div>
-      </div>
+      )}
     </div>
   )
 }
