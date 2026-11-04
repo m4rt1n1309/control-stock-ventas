@@ -9,6 +9,8 @@ App web para el celular: escanear códigos de barra con la cámara para cargar p
 
 Stack: React + Vite, Supabase (Postgres + login), html5-qrcode. Deploy en Vercel.
 
+**App online:** https://control-stock-ventas-delta.vercel.app — cada `git push` a `main` la vuelve a publicar sola.
+
 ---
 
 ## 1. Crear la base de datos (Supabase, gratis)
