@@ -93,6 +93,15 @@ export async function getSales(from, to) {
   )
 }
 
+// ---------- Licencia / prueba ----------
+
+// Devuelve null si no hay licencia (uso sin límite)
+export async function getLicense() {
+  const { data, error } = await supabase.from('app_license').select('*').maybeSingle()
+  if (error) return null // tabla inexistente u otro error: no bloquear
+  return data
+}
+
 // ---------- Caja (apertura / cierre) ----------
 
 export async function getOpenSession() {

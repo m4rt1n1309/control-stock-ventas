@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { APP_NAME } from '../lib/license'
 
 export default function Login() {
   const [email, setEmail] = useState('')
@@ -21,7 +22,7 @@ export default function Login() {
   return (
     <div className="login">
       <form className="card form" onSubmit={submit}>
-        <h1>🏪 Kiosco</h1>
+        <h1>🏪 {APP_NAME}</h1>
         <label>
           Email
           <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" required />

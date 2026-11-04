@@ -6,7 +6,7 @@ import { fmtDateTime, fmtMoney } from '../lib/format'
 const TYPE_LABEL = { entrada: 'Entrada', venta: 'Venta', ajuste: 'Ajuste' }
 
 /** Ficha de producto: ver datos, sumar/restar stock, editar y eliminar. */
-export default function ProductDetail({ product, categories, onChange, onDeleted, onClose }) {
+export default function ProductDetail({ product, categories, onChange, onDeleted, onClose, readOnly = false }) {
   const [editing, setEditing] = useState(false)
   const [qty, setQty] = useState('')
   const [note, setNote] = useState('')
@@ -99,30 +99,36 @@ export default function ProductDetail({ product, categories, onChange, onDeleted
       </div>
       {low && <p className="msg error">Stock bajo (mínimo {product.min_stock})</p>}
 
-      <h3>Mover stock</h3>
-      <div className="row2">
-        <input value={qty} onChange={(e) => setQty(e.target.value)} inputMode="numeric" placeholder="Cantidad" />
-        <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Nota (opcional)" />
-      </div>
-      <div className="actions">
-        <button className="btn secondary" onClick={() => changeStock(-1)} disabled={busy}>
-          − Restar
-        </button>
-        <button className="btn primary" onClick={() => changeStock(1)} disabled={busy}>
-          + Sumar
-        </button>
-      </div>
+      {!readOnly && (
+        <>
+          <h3>Mover stock</h3>
+          <div className="row2">
+            <input value={qty} onChange={(e) => setQty(e.target.value)} inputMode="numeric" placeholder="Cantidad" />
+            <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Nota (opcional)" />
+          </div>
+          <div className="actions">
+            <button className="btn secondary" onClick={() => changeStock(-1)} disabled={busy}>
+              − Restar
+            </button>
+            <button className="btn primary" onClick={() => changeStock(1)} disabled={busy}>
+              + Sumar
+            </button>
+          </div>
+        </>
+      )}
 
       {msg && <p className={`msg ${msg.type}`}>{msg.text}</p>}
 
-      <div className="actions">
-        <button className="btn danger-outline" onClick={remove} disabled={busy}>
-          Eliminar
-        </button>
-        <button className="btn secondary" onClick={() => setEditing(true)} disabled={busy}>
-          Editar datos / precio
-        </button>
-      </div>
+      {!readOnly && (
+        <div className="actions">
+          <button className="btn danger-outline" onClick={remove} disabled={busy}>
+            Eliminar
+          </button>
+          <button className="btn secondary" onClick={() => setEditing(true)} disabled={busy}>
+            Editar datos / precio
+          </button>
+        </div>
+      )}
 
       {movements.length > 0 && (
         <>

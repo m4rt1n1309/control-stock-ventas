@@ -3,7 +3,7 @@ import ProductDetail from '../components/ProductDetail'
 import { errorText, getCategories, searchProducts, updatePricesByPercent } from '../lib/api'
 import { fmtMoney, parseNumber } from '../lib/format'
 
-export default function Productos() {
+export default function Productos({ readOnly = false }) {
   const [q, setQ] = useState('')
   const [lowOnly, setLowOnly] = useState(false)
   const [items, setItems] = useState([])
@@ -38,6 +38,7 @@ export default function Productos() {
     return (
       <div className="screen">
         <ProductDetail
+          readOnly={readOnly}
           product={selected}
           categories={categories}
           onChange={(p) => {
@@ -66,12 +67,14 @@ export default function Productos() {
           <input type="checkbox" checked={lowOnly} onChange={(e) => setLowOnly(e.target.checked)} />
           Stock bajo {lowCount > 0 && <span className="badge">{lowCount}</span>}
         </label>
-        <button className="btn small secondary" onClick={() => setShowBulk(!showBulk)}>
-          % Aumentar precios
-        </button>
+        {!readOnly && (
+          <button className="btn small secondary" onClick={() => setShowBulk(!showBulk)}>
+            % Aumentar precios
+          </button>
+        )}
       </div>
 
-      {showBulk && (
+      {showBulk && !readOnly && (
         <BulkPrices
           categories={categories}
           onDone={() => {

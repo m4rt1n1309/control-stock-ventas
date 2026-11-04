@@ -54,6 +54,19 @@ En el celular abrí esa URL y en el menú del navegador elegí **"Agregar a pant
 
 ---
 
+## Sumar un negocio nuevo (copia propia + prueba)
+
+1. Crear un proyecto nuevo en Supabase y ejecutar, en orden: `supabase/schema.sql` y todos los archivos de `supabase/migrations/`.
+2. Ejecutar `supabase/licencia_prueba.sql` para iniciar la prueba de 7 días.
+   Ese mismo archivo tiene comentadas las órdenes para **extender**, **activar** o **suspender**.
+3. Desactivar el registro público y crear el usuario del dueño (Authentication → Users).
+4. En Vercel: **Add New → Project** → el mismo repo, con nombre del negocio, y las variables
+   `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (del proyecto nuevo) y `VITE_APP_NAME` (ej: `HyS Bulones`).
+
+Todas las copias usan el mismo código: cada `git push` actualiza todas.
+Sin fila en `app_license` la app no vence (copia propia). Al vencer la prueba se bloquea vender y cargar
+(lo controla la base de datos); los datos quedan y se pueden consultar.
+
 ## Notas
 
 - La cámara **solo funciona con HTTPS** (Vercel ya lo tiene).

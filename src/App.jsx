@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { configured, supabase } from './lib/supabase'
-import { getOpenSession } from './lib/api'
+import { getLicense, getOpenSession } from './lib/api'
+import { APP_NAME, licenseStatus } from './lib/license'
+import { LicenseBanner, LicenseBlocked } from './components/Licencia'
 import Login from './screens/Login'
 import Caja from './screens/Caja'
 import Cargar from './screens/Cargar'
@@ -27,6 +29,22 @@ export default function App() {
     const { data } = supabase.auth.onAuthStateChange((_e, s) => setSession(s))
     return () => data.subscription.unsubscribe()
   }, [])
+
+  // Licencia: undefined = cargando, null = sin licencia (sin límite)
+  const [license, setLicense] = useState(undefined)
+  const status = licenseStatus(license ?? null)
+  const blocked = status.kind === 'expired'
+
+  // Se revisa al iniciar sesión, al cambiar de pestaña y cada 5 minutos (por si vence con la app abierta)
+  useEffect(() => {
+    if (!session) return
+    getLicense().then(setLicense)
+  }, [session?.user?.id, tab])
+  useEffect(() => {
+    if (!session) return
+    const t = setInterval(() => getLicense().then(setLicense), 5 * 60 * 1000)
+    return () => clearInterval(t)
+  }, [session?.user?.id])
 
   const refreshCaja = useCallback(() => {
     getOpenSession()
@@ -62,7 +80,7 @@ export default function App() {
   return (
     <div className="app">
       <header className="topbar">
-        <strong>🏪 Kiosco</strong>
+        <strong className="app-name">🏪 {APP_NAME}</strong>
         {caja !== undefined && (
           <button className={`pill ${caja ? 'open' : 'closed'}`} onClick={() => setTab('caja')}>
             {caja ? '● Caja abierta' : '● Caja cerrada'}
@@ -73,12 +91,14 @@ export default function App() {
           Salir
         </button>
       </header>
+      <LicenseBanner status={status} />
 
       <main>
+        {blocked && (tab === 'vender' || tab === 'cargar') && <LicenseBlocked status={status} />}
         {/* La pantalla de venta queda siempre montada para no perder el carrito al cambiar de pestaña */}
-        <div hidden={tab !== 'vender'}>
+        <div hidden={tab !== 'vender' || blocked}>
           <Caja
-            active={tab === 'vender'}
+            active={tab === 'vender' && !blocked}
             caja={caja}
             onCajaChange={onCajaChange}
             onLoadNewCode={(code) => {
@@ -87,8 +107,10 @@ export default function App() {
             }}
           />
         </div>
-        {tab === 'cargar' && <Cargar initialCode={pendingCode} onCodeConsumed={() => setPendingCode(null)} />}
-        {tab === 'productos' && <Productos />}
+        {tab === 'cargar' && !blocked && (
+          <Cargar initialCode={pendingCode} onCodeConsumed={() => setPendingCode(null)} />
+        )}
+        {tab === 'productos' && <Productos readOnly={blocked} />}
         {tab === 'caja' && <CajaDiaria caja={caja} onCajaChange={onCajaChange} />}
       </main>
 
