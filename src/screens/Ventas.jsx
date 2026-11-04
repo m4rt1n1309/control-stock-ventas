@@ -1,15 +1,14 @@
 import { useEffect, useState } from 'react'
 import { errorText, getSales } from '../lib/api'
-import { fmtMoney, fmtTime } from '../lib/format'
+import { fmtMoney, fmtTime, METHOD_LABEL } from '../lib/format'
 
-const METHOD_LABEL = { efectivo: 'Efectivo', debito: 'Débito', credito: 'Crédito', transferencia: 'Transf. / QR' }
 
 function todayStr() {
   const d = new Date()
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
-export default function Ventas() {
+export default function Ventas({ embedded = false }) {
   const [day, setDay] = useState(todayStr)
   const [sales, setSales] = useState([])
   const [loading, setLoading] = useState(true)
@@ -35,7 +34,7 @@ export default function Ventas() {
   }, {})
 
   return (
-    <div className="screen">
+    <div className={embedded ? "stack" : "screen"}>
       <input type="date" value={day} onChange={(e) => setDay(e.target.value)} max={todayStr()} />
 
       <div className="card">

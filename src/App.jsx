@@ -1,22 +1,25 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { configured, supabase } from './lib/supabase'
+import { getOpenSession } from './lib/api'
 import Login from './screens/Login'
 import Caja from './screens/Caja'
 import Cargar from './screens/Cargar'
 import Productos from './screens/Productos'
-import Ventas from './screens/Ventas'
+import CajaDiaria from './screens/CajaDiaria'
 
 const TABS = [
-  ['caja', '🛒', 'Caja'],
+  ['vender', '🛒', 'Vender'],
   ['cargar', '📷', 'Cargar'],
   ['productos', '📦', 'Productos'],
-  ['ventas', '📊', 'Ventas'],
+  ['caja', '💰', 'Caja'],
 ]
 
 export default function App() {
   const [session, setSession] = useState(undefined)
-  const [tab, setTab] = useState('caja')
+  const [tab, setTab] = useState('vender')
   const [pendingCode, setPendingCode] = useState(null)
+  // Caja abierta: undefined = cargando, null = cerrada, objeto = abierta
+  const [caja, setCaja] = useState(undefined)
 
   useEffect(() => {
     if (!configured) return
@@ -24,6 +27,20 @@ export default function App() {
     const { data } = supabase.auth.onAuthStateChange((_e, s) => setSession(s))
     return () => data.subscription.unsubscribe()
   }, [])
+
+  const refreshCaja = useCallback(() => {
+    getOpenSession()
+      .then((c) => setCaja(c ?? null))
+      .catch(() => setCaja(null))
+  }, [])
+
+  // Recargar el estado de la caja al iniciar sesión y al cambiar de pestaña
+  // (otro celular pudo haberla abierto o cerrado)
+  useEffect(() => {
+    if (session) refreshCaja()
+  }, [session?.user?.id, tab, refreshCaja])
+
+  const onCajaChange = (row) => (row ? setCaja(row) : refreshCaja())
 
   if (!configured) {
     return (
@@ -46,6 +63,11 @@ export default function App() {
     <div className="app">
       <header className="topbar">
         <strong>🏪 Kiosco</strong>
+        {caja !== undefined && (
+          <button className={`pill ${caja ? 'open' : 'closed'}`} onClick={() => setTab('caja')}>
+            {caja ? '● Caja abierta' : '● Caja cerrada'}
+          </button>
+        )}
         <span className="muted user">{session.user.email}</span>
         <button className="btn small secondary" onClick={() => supabase.auth.signOut()}>
           Salir
@@ -53,10 +75,12 @@ export default function App() {
       </header>
 
       <main>
-        {/* La caja queda siempre montada para no perder el carrito al cambiar de pestaña */}
-        <div hidden={tab !== 'caja'}>
+        {/* La pantalla de venta queda siempre montada para no perder el carrito al cambiar de pestaña */}
+        <div hidden={tab !== 'vender'}>
           <Caja
-            active={tab === 'caja'}
+            active={tab === 'vender'}
+            caja={caja}
+            onCajaChange={onCajaChange}
             onLoadNewCode={(code) => {
               setPendingCode(code)
               setTab('cargar')
@@ -65,7 +89,7 @@ export default function App() {
         </div>
         {tab === 'cargar' && <Cargar initialCode={pendingCode} onCodeConsumed={() => setPendingCode(null)} />}
         {tab === 'productos' && <Productos />}
-        {tab === 'ventas' && <Ventas />}
+        {tab === 'caja' && <CajaDiaria caja={caja} onCajaChange={onCajaChange} />}
       </main>
 
       <nav className="tabbar">

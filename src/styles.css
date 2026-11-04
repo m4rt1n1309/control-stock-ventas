@@ -285,3 +285,36 @@ input:focus, select:focus { outline: 2px solid var(--primary); outline-offset: -
   display: grid; place-items: center; font-size: 2.2rem;
   background: var(--ok-bg); color: var(--ok);
 }
+
+/* ---------- Cierre de caja ---------- */
+.stack { display: flex; flex-direction: column; gap: 12px; }
+.segmented.three { grid-template-columns: repeat(3, 1fr); }
+.btn.danger { background: var(--err); color: #fff; }
+.warn { color: #b26b00; }
+.right { text-align: right; }
+
+.pill {
+  font: inherit; font-size: 0.75rem; font-weight: 600;
+  border: none; border-radius: 99px; padding: 4px 10px; cursor: pointer; white-space: nowrap;
+}
+.pill.open { background: var(--ok-bg); color: var(--ok); }
+.pill.closed { background: var(--err-bg); color: var(--err); }
+
+.expected {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  margin: 12px 0 4px; padding: 14px; border-radius: 10px; background: var(--info-bg); color: var(--info);
+}
+.expected span { font-size: 0.85rem; }
+.expected strong { font-size: 2rem; }
+
+.resumen h3 { margin: 14px 0 6px; font-size: 0.95rem; }
+.rows { margin: 0; display: flex; flex-direction: column; }
+.rows > div { display: flex; justify-content: space-between; gap: 10px; padding: 6px 0; border-top: 1px solid var(--border); }
+.rows > div:first-child { border-top: none; }
+.rows dt { color: var(--muted); }
+.rows dd { margin: 0; font-variant-numeric: tabular-nums; }
+.rows > div.strong dt, .rows > div.strong dd { font-weight: 700; color: inherit; }
+.rows > div.neg dt, .rows > div.neg dd { color: var(--err); }
+.rows > div.pos dt, .rows > div.pos dd { color: var(--ok); }
+.rows > div.warn dt, .rows > div.warn dd { color: #b26b00; }
+.done .resumen { text-align: left; }

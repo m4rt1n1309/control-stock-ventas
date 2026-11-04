@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import Scanner from '../components/Scanner'
+import AbrirCaja from '../components/AbrirCaja'
 import { errorText, findByBarcode, registerSale, searchProducts } from '../lib/api'
 import { fmtMoney, parseNumber } from '../lib/format'
 
@@ -17,7 +18,7 @@ const BILLS = [1000, 2000, 5000, 10000, 20000]
  *  2. cobrar: elegir medio de pago, con cuánto paga, vuelto
  *  3. hecha: confirmación y "Nueva venta"
  */
-export default function Caja({ active, onLoadNewCode }) {
+export default function Caja({ active, caja, onCajaChange, onLoadNewCode }) {
   const [step, setStep] = useState('armar')
   const [cart, setCart] = useState([]) // [{ product, qty }]
   const [scanning, setScanning] = useState(false)
@@ -40,10 +41,15 @@ export default function Caja({ active, onLoadNewCode }) {
   const hasPaid = method === 'efectivo' && Number.isFinite(paidNum)
   const change = hasPaid ? paidNum - total : null
 
-  // Apagar la cámara al salir de la pestaña
+  // Apagar la cámara al salir de la pestaña o si se cierra la caja
   useEffect(() => {
-    if (!active) setScanning(false)
-  }, [active])
+    if (!active || caja === null) setScanning(false)
+  }, [active, caja])
+
+  // Si cerraron la caja (desde otro celular) mientras se cobraba, volver al paso 1
+  useEffect(() => {
+    if (caja === null && step === 'cobrar') setStep('armar')
+  }, [caja, step])
 
   function showToast(text, type = 'ok') {
     setToast({ text, type })
@@ -132,6 +138,7 @@ export default function Caja({ active, onLoadNewCode }) {
       setStep('hecha')
     } catch (err) {
       setError(errorText(err))
+      if (/caja está cerrada/i.test(err?.message || '')) onCajaChange(null)
     } finally {
       setBusy(false)
     }
@@ -224,6 +231,18 @@ export default function Caja({ active, onLoadNewCode }) {
             ← Volver y agregar más productos
           </button>
         </div>
+      </div>
+    )
+  }
+
+  // ---------- Caja cerrada: hay que abrirla para vender ----------
+  if (caja === null) {
+    return (
+      <div className="screen">
+        <AbrirCaja onOpened={onCajaChange} />
+        {cart.length > 0 && (
+          <p className="msg info">Tenés {units} productos en la venta: se mantienen cuando abras la caja.</p>
+        )}
       </div>
     )
   }

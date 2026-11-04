@@ -93,6 +93,57 @@ export async function getSales(from, to) {
   )
 }
 
+// ---------- Caja (apertura / cierre) ----------
+
+export async function getOpenSession() {
+  return check(await supabase.from('cash_sessions').select('*').is('closed_at', null).maybeSingle())
+}
+
+export async function openSession(openingAmount) {
+  return check(await supabase.rpc('open_cash_session', { p_opening_amount: openingAmount }))
+}
+
+export async function getSessionSummary(sessionId) {
+  return check(await supabase.rpc('cash_session_summary', { p_session_id: sessionId }))
+}
+
+export async function addCashMovement(type, amount, reason) {
+  return check(await supabase.rpc('add_cash_movement', { p_type: type, p_amount: amount, p_reason: reason }))
+}
+
+export async function getCashMovements(sessionId) {
+  return check(
+    await supabase.from('cash_movements').select('*').eq('session_id', sessionId).order('created_at', { ascending: false }),
+  )
+}
+
+export async function closeSession(sessionId, counted, notes) {
+  return check(
+    await supabase.rpc('close_cash_session', { p_session_id: sessionId, p_counted: counted, p_notes: notes || null }),
+  )
+}
+
+export async function getClosedSessions(limit = 30) {
+  return check(
+    await supabase
+      .from('cash_sessions')
+      .select('*')
+      .not('closed_at', 'is', null)
+      .order('closed_at', { ascending: false })
+      .limit(limit),
+  )
+}
+
+export async function getSessionSales(sessionId) {
+  return check(
+    await supabase
+      .from('sales')
+      .select('*, sale_items(*)')
+      .eq('session_id', sessionId)
+      .order('created_at', { ascending: false }),
+  )
+}
+
 // Busca el nombre del producto en Open Food Facts (base pública y gratuita).
 export async function lookupOpenFoodFacts(code) {
   const ctrl = new AbortController()

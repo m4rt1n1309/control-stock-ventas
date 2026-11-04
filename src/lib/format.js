@@ -16,3 +16,10 @@ export const fmtDateTime = (iso) =>
 
 export const fmtTime = (iso) =>
   new Date(iso).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
+
+export const METHOD_LABEL = {
+  efectivo: 'Efectivo',
+  debito: 'Débito',
+  credito: 'Crédito',
+  transferencia: 'Transf. / QR',
+}
