@@ -16,15 +16,36 @@ export async function findByBarcode(code) {
   return check(await supabase.from('products').select('*').eq('barcode', code).maybeSingle())
 }
 
-export async function searchProducts(q, { limit = 50 } = {}) {
-  let query = supabase.from('products').select('*').order('name').limit(limit)
+// Supabase devuelve hasta 1000 filas por consulta: para traer todo hay que pedir de a tandas
+const PAGE = 1000
+async function fetchAll(buildQuery) {
+  const rows = []
+  for (let from = 0; ; from += PAGE) {
+    const page = check(await buildQuery().range(from, from + PAGE - 1))
+    rows.push(...page)
+    if (page.length < PAGE) return rows
+  }
+}
+
+function productsQuery(q) {
+  let query = supabase.from('products').select('*').order('name').order('id')
   const clean = q.trim().replace(/[,()%*]/g, ' ').trim()
   if (clean) query = query.or(`name.ilike.%${clean}%,barcode.eq.${clean}`)
-  return check(await query)
+  return query
+}
+
+export async function searchProducts(q, { limit = 50 } = {}) {
+  return check(await productsQuery(q).limit(limit))
+}
+
+export function searchAllProducts(q) {
+  return fetchAll(() => productsQuery(q))
 }
 
 export async function getCategories() {
-  const rows = check(await supabase.from('products').select('category').not('category', 'is', null))
+  const rows = await fetchAll(() =>
+    supabase.from('products').select('category').not('category', 'is', null).order('id'),
+  )
   return [...new Set(rows.map((r) => r.category).filter(Boolean))].sort((a, b) => a.localeCompare(b))
 }
 

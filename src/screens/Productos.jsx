@@ -1,7 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import ProductDetail from '../components/ProductDetail'
-import { errorText, getCategories, searchProducts, updatePricesByPercent } from '../lib/api'
+import { errorText, getCategories, searchAllProducts, updatePricesByPercent } from '../lib/api'
 import { fmtMoney, parseNumber } from '../lib/format'
+
+const SHOW_STEP = 200
 
 export default function Productos({ readOnly = false }) {
   const [q, setQ] = useState('')
@@ -13,15 +15,20 @@ export default function Productos({ readOnly = false }) {
   const [categories, setCategories] = useState([])
   const [showBulk, setShowBulk] = useState(false)
 
+  const [visible, setVisible] = useState(SHOW_STEP)
+  const lastRequest = useRef(0)
+
   async function load() {
+    const request = ++lastRequest.current // si se sigue escribiendo, solo vale la última búsqueda
     setLoading(true)
     setError(null)
     try {
-      setItems(await searchProducts(q, { limit: 500 }))
+      const rows = await searchAllProducts(q)
+      if (request === lastRequest.current) setItems(rows)
     } catch (err) {
-      setError(errorText(err))
+      if (request === lastRequest.current) setError(errorText(err))
     } finally {
-      setLoading(false)
+      if (request === lastRequest.current) setLoading(false)
     }
   }
 
@@ -29,6 +36,10 @@ export default function Productos({ readOnly = false }) {
     const t = setTimeout(load, 250)
     return () => clearTimeout(t)
   }, [q])
+
+  useEffect(() => {
+    setVisible(SHOW_STEP)
+  }, [q, lowOnly])
 
   useEffect(() => {
     getCategories().then(setCategories).catch(() => {})
@@ -89,7 +100,7 @@ export default function Productos({ readOnly = false }) {
       {!loading && !shown.length && <p className="empty">No hay productos</p>}
 
       <ul className="list products">
-        {shown.map((p) => (
+        {shown.slice(0, visible).map((p) => (
           <li key={p.id} onClick={() => setSelected(p)}>
             <div>
               <span>{p.name}</span>
@@ -101,6 +112,11 @@ export default function Productos({ readOnly = false }) {
           </li>
         ))}
       </ul>
+      {shown.length > visible && (
+        <button className="btn secondary block" onClick={() => setVisible(visible + SHOW_STEP)}>
+          Ver más ({shown.length - visible} restantes)
+        </button>
+      )}
       <p className="muted center">{shown.length} productos</p>
     </div>
   )

@@ -13,6 +13,10 @@ const METHODS = [
 ]
 const BILLS = [1000, 2000, 5000, 10000, 20000]
 
+const remaining = ({ product, qty }) => product.stock - qty
+const isLow = (item) => remaining(item) <= item.product.min_stock
+const lowText = (item) => (remaining(item) <= 0 ? 'se termina el stock' : `quedan ${remaining(item)}`)
+
 /**
  * Flujo de venta en 3 pasos:
  *  1. armar: escanear / buscar productos (se suman a la lista)
@@ -173,6 +177,16 @@ export default function Caja({ active, caja, onCajaChange, onLoadNewCode }) {
           {done.change > 0 && (
             <div className="change-box">
               Vuelto: <strong>{fmtMoney(done.change)}</strong>
+            </div>
+          )}
+          {cart.some(isLow) && (
+            <div className="msg error">
+              <b>⚠ Hay que reponer:</b>
+              {cart.filter(isLow).map((item) => (
+                <div key={item.product.id}>
+                  {item.product.name}: {lowText(item)}
+                </div>
+              ))}
             </div>
           )}
           <button className="btn primary block big" onClick={newSale}>
@@ -360,6 +374,7 @@ export default function Caja({ active, caja, onCajaChange, onLoadNewCode }) {
                   <small className="muted">
                     {fmtMoney(product.sale_price)} c/u · stock {product.stock}
                   </small>
+                  {isLow({ product, qty }) && <small className="warn">⚠ Stock bajo: {lowText({ product, qty })}</small>}
                 </div>
                 <div className="qty">
                   <button onClick={() => setQty(product.id, qty - 1)} aria-label="Restar">
