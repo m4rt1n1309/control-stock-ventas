@@ -329,3 +329,52 @@ input:focus, select:focus { outline: 2px solid var(--primary); outline-offset: -
 .license-banner.expired { background: var(--err-bg); color: var(--err); justify-content: space-between; }
 .done-icon.expired { background: var(--err-bg); color: var(--err); }
 a.btn { display: inline-block; text-decoration: none; text-align: center; }
+
+/* ---------- Compu / laptop: usa toda la pantalla ---------- */
+@media (min-width: 1000px) {
+  .app { padding-bottom: 0; padding-left: 104px; }
+  main { max-width: none; }
+  .screen { padding: 20px 24px; }
+
+  /* Menú al costado: en una laptop sobra ancho y falta alto */
+  .tabbar {
+    top: 0; right: auto; width: 104px;
+    grid-template-columns: 1fr; grid-auto-rows: max-content;
+    border-top: none; border-right: 1px solid var(--border);
+    padding: 8px 0;
+  }
+  .tabbar button { padding: 16px 0; font-size: 0.9rem; }
+  .tab-icon { font-size: 1.7rem; }
+
+  /* Vender: lista a la izquierda, total y Cobrar siempre a la vista a la derecha */
+  .screen.with-paybar { padding-right: 368px; padding-bottom: 24px; }
+  .paybar {
+    left: auto; right: 24px; bottom: 24px; width: 320px;
+    flex-direction: column; align-items: stretch; gap: 16px;
+    padding: 20px;
+    border: 1px solid var(--border); border-radius: var(--radius);
+  }
+  .paybar strong { font-size: 2.4rem; }
+  .paybar .btn { padding: 18px; font-size: 1.25rem; }
+
+  .method-grid { grid-template-columns: repeat(4, 1fr); }
+  .big-amount { font-size: 3.2rem; }
+
+  .list.products {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 8px;
+    background: none; border: none; overflow: visible;
+  }
+  .list.products > li, .list.products > li:first-child {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  }
+
+  .product-form { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 20px; align-items: end; }
+  .product-form > h2, .product-form > .msg, .product-form > .hint, .product-form > .actions { grid-column: 1 / -1; }
+
+  /* Pantallas cortas: centradas, estiradas se leen mal */
+  .card.form:not(.product-form), .card.done, .scanner { width: 100%; max-width: 640px; margin-inline: auto; }
+  .login .card.form { max-width: 380px; }
+
+  .resumen { display: grid; grid-template-rows: auto 1fr; grid-auto-flow: column; grid-auto-columns: 1fr; column-gap: 32px; }
+  .done .resumen { display: block; }
+}

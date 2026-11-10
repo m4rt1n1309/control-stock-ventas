@@ -50,13 +50,19 @@ export default function ProductForm({ initial = {}, isNew = false, categories = 
   }
 
   return (
-    <form className="card form" onSubmit={submit}>
+    <form className="card form product-form" onSubmit={submit} data-block-scanner>
       <h2>{isNew ? 'Nuevo producto' : 'Editar producto'}</h2>
       {notice && <p className="msg info">{notice}</p>}
 
       <label>
         Código de barras
-        <input value={f.barcode} onChange={set('barcode')} inputMode="numeric" placeholder="(sin código)" />
+        <input
+          value={f.barcode}
+          onChange={set('barcode')}
+          onKeyDown={(e) => e.key === 'Enter' && e.preventDefault()} // el Enter del lector no debe guardar el formulario
+          inputMode="numeric"
+          placeholder="(sin código)"
+        />
       </label>
       <label>
         Nombre *

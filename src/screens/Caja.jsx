@@ -3,6 +3,7 @@ import Scanner from '../components/Scanner'
 import AbrirCaja from '../components/AbrirCaja'
 import { errorText, findByBarcode, registerSale, searchProducts } from '../lib/api'
 import { fmtMoney, parseNumber } from '../lib/format'
+import { useHardwareScanner } from '../lib/useHardwareScanner'
 
 const METHODS = [
   ['efectivo', '💵', 'Efectivo'],
@@ -34,6 +35,9 @@ export default function Caja({ active, caja, onCajaChange, onLoadNewCode }) {
   const [error, setError] = useState(null)
   const [done, setDone] = useState(null) // { id, total, change }
   const toastTimer = useRef(null)
+  // Siempre la lista más nueva: con el lector USB pueden entrar dos lecturas seguidas
+  const cartRef = useRef(cart)
+  cartRef.current = cart
 
   const units = cart.reduce((s, i) => s + i.qty, 0)
   const total = cart.reduce((s, i) => s + Number(i.product.sale_price) * i.qty, 0)
@@ -60,19 +64,19 @@ export default function Caja({ active, caja, onCajaChange, onLoadNewCode }) {
   function addProduct(product) {
     setNotFound(null)
     setNoStock(null)
-    const qty = (cart.find((i) => i.product.id === product.id)?.qty ?? 0) + 1
+    const current = cartRef.current
+    const idx = current.findIndex((i) => i.product.id === product.id)
+    const qty = (idx === -1 ? 0 : current[idx].qty) + 1
     if (qty > product.stock) {
       setNoStock({ product, inCart: qty - 1 })
       showToast(product.stock <= 0 ? 'Sin stock' : `Solo hay ${product.stock}`, 'error')
       return
     }
     setLastId(product.id)
-    setCart((c) => {
-      const idx = c.findIndex((i) => i.product.id === product.id)
-      if (idx === -1) return [{ product, qty: 1 }, ...c]
-      const item = { ...c[idx], qty: c[idx].qty + 1, product }
-      return [item, ...c.filter((_, i) => i !== idx)] // el último escaneado queda arriba
-    })
+    // El último escaneado queda arriba
+    const next = [{ product, qty }, ...current.filter((_, i) => i !== idx)]
+    cartRef.current = next
+    setCart(next)
     showToast(`✔ ${product.name}${qty > 1 ? ` (x${qty})` : ''}`)
   }
 
@@ -88,6 +92,8 @@ export default function Caja({ active, caja, onCajaChange, onLoadNewCode }) {
       showToast(errorText(err), 'error')
     }
   }
+
+  useHardwareScanner(addByCode, active && step === 'armar' && Boolean(caja))
 
   // Búsqueda manual por nombre
   useEffect(() => {
@@ -329,7 +335,8 @@ export default function Caja({ active, caja, onCajaChange, onLoadNewCode }) {
           <h3>Cómo hacer una venta</h3>
           <ol>
             <li>
-              Tocá <b>Escanear productos</b> y pasá <b>todos</b> los productos, uno por uno.
+              Tocá <b>Escanear productos</b> y pasá <b>todos</b> los productos, uno por uno. Con lector USB no hace falta
+              tocar nada: pasalos directamente.
             </li>
             <li>Se van sumando a la lista. Si pasás dos veces el mismo, suma cantidad.</li>
             <li>

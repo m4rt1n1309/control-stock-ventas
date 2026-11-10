@@ -3,6 +3,7 @@ import Scanner from '../components/Scanner'
 import ProductForm from '../components/ProductForm'
 import ProductDetail from '../components/ProductDetail'
 import { createProduct, errorText, findByBarcode, getCategories, lookupOpenFoodFacts } from '../lib/api'
+import { useHardwareScanner } from '../lib/useHardwareScanner'
 
 /**
  * Escanear un código: si el producto existe muestra la ficha (sumar stock, editar),
@@ -59,6 +60,8 @@ export default function Cargar({ initialCode, onCodeConsumed }) {
     }
   }
 
+  useHardwareScanner(lookup, !loading)
+
   async function saveNew(values) {
     const created = await createProduct(values)
     setDraft(null)
@@ -83,6 +86,7 @@ export default function Cargar({ initialCode, onCodeConsumed }) {
 
       {idle && (
         <div className="card">
+          <p className="hint">Con lector USB: pasá el producto y se abre solo.</p>
           <form
             className="row2"
             onSubmit={(e) => {
