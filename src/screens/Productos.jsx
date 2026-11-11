@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import ProductDetail from '../components/ProductDetail'
 import { errorText, getCategories, searchAllProducts, updatePricesByPercent } from '../lib/api'
-import { fmtMoney, parseNumber } from '../lib/format'
+import { fmtMoney, fmtQty, parseNumber } from '../lib/format'
 
 const SHOW_STEP = 200
 
@@ -106,9 +106,10 @@ export default function Productos({ readOnly = false }) {
               <span>{p.name}</span>
               <small className="muted">
                 {p.category || 'Sin categoría'} · {fmtMoney(p.sale_price)}
+                {p.sold_by_weight ? ' /kg' : ''}
               </small>
             </div>
-            <strong className={p.stock <= p.min_stock ? 'neg' : ''}>{p.stock}</strong>
+            <strong className={p.stock <= p.min_stock ? 'neg' : ''}>{fmtQty(p.stock, p.sold_by_weight)}</strong>
           </li>
         ))}
       </ul>

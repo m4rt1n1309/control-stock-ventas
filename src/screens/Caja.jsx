@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import Scanner from '../components/Scanner'
 import AbrirCaja from '../components/AbrirCaja'
+import PesoDialog from '../components/PesoDialog'
 import { errorText, findByBarcode, registerSale, searchProducts } from '../lib/api'
-import { fmtMoney, parseNumber } from '../lib/format'
+import { fmtMoney, fmtQty, parseNumber, roundKg } from '../lib/format'
 import { useHardwareScanner } from '../lib/useHardwareScanner'
 
 const METHODS = [
@@ -13,9 +14,13 @@ const METHODS = [
 ]
 const BILLS = [1000, 2000, 5000, 10000, 20000]
 
-const remaining = ({ product, qty }) => product.stock - qty
+const remaining = ({ product, qty }) => roundKg(product.stock - qty)
 const isLow = (item) => remaining(item) <= item.product.min_stock
-const lowText = (item) => (remaining(item) <= 0 ? 'se termina el stock' : `quedan ${remaining(item)}`)
+const lowText = (item) =>
+  remaining(item) <= 0 ? 'se termina el stock' : `quedan ${fmtQty(remaining(item), item.product.sold_by_weight)}`
+const subtotalOf = ({ product, qty }) => Math.round(Number(product.sale_price) * qty * 100) / 100
+// Un fiambre cuenta como 1 producto, no como "0,25"
+const countOf = ({ product, qty }) => (product.sold_by_weight ? 1 : qty)
 
 /**
  * Flujo de venta en 3 pasos:
@@ -31,6 +36,7 @@ export default function Caja({ active, caja, onCajaChange, onLoadNewCode }) {
   const [lastId, setLastId] = useState(null)
   const [notFound, setNotFound] = useState(null)
   const [noStock, setNoStock] = useState(null) // { product, inCart }
+  const [weighing, setWeighing] = useState(null) // { product, initialKg } producto por peso esperando los gramos
   const [q, setQ] = useState('')
   const [results, setResults] = useState([])
   const [method, setMethod] = useState('efectivo')
@@ -43,8 +49,8 @@ export default function Caja({ active, caja, onCajaChange, onLoadNewCode }) {
   const cartRef = useRef(cart)
   cartRef.current = cart
 
-  const units = cart.reduce((s, i) => s + i.qty, 0)
-  const total = cart.reduce((s, i) => s + Number(i.product.sale_price) * i.qty, 0)
+  const units = cart.reduce((s, i) => s + countOf(i), 0)
+  const total = Math.round(cart.reduce((s, i) => s + subtotalOf(i), 0) * 100) / 100
   const paidNum = parseNumber(paid)
   const hasPaid = method === 'efectivo' && Number.isFinite(paidNum)
   const change = hasPaid ? paidNum - total : null
@@ -70,10 +76,18 @@ export default function Caja({ active, caja, onCajaChange, onLoadNewCode }) {
     setNoStock(null)
     const current = cartRef.current
     const idx = current.findIndex((i) => i.product.id === product.id)
+    if (product.sold_by_weight) {
+      if (product.stock <= 0) {
+        setNoStock({ product, inCart: 0 })
+        return showToast('Sin stock', 'error')
+      }
+      // Si ya está en la venta, se abre con el peso cargado para cambiarlo
+      return setWeighing({ product, initialKg: idx === -1 ? null : current[idx].qty })
+    }
     const qty = (idx === -1 ? 0 : current[idx].qty) + 1
     if (qty > product.stock) {
       setNoStock({ product, inCart: qty - 1 })
-      showToast(product.stock <= 0 ? 'Sin stock' : `Solo hay ${product.stock}`, 'error')
+      showToast(product.stock <= 0 ? 'Sin stock' : `Solo hay ${fmtQty(product.stock)}`, 'error')
       return
     }
     setLastId(product.id)
@@ -84,7 +98,23 @@ export default function Caja({ active, caja, onCajaChange, onLoadNewCode }) {
     showToast(`✔ ${product.name}${qty > 1 ? ` (x${qty})` : ''}`)
   }
 
+  function confirmWeight(kg) {
+    const { product } = weighing
+    setWeighing(null)
+    setLastId(product.id)
+    const next = [{ product, qty: kg }, ...cartRef.current.filter((i) => i.product.id !== product.id)]
+    cartRef.current = next
+    setCart(next)
+    showToast(`✔ ${product.name} (${fmtQty(kg, true)})`)
+  }
+
+  function removeItem(id) {
+    setWeighing(null)
+    setCart((c) => c.filter((i) => i.product.id !== id))
+  }
+
   async function addByCode(code) {
+    if (document.querySelector('.peso')) return // con la ventana del peso abierta no se suman productos
     try {
       const p = await findByBarcode(code)
       if (p) addProduct(p)
@@ -160,6 +190,7 @@ export default function Caja({ active, caja, onCajaChange, onLoadNewCode }) {
     setMethod('efectivo')
     setNotFound(null)
     setNoStock(null)
+    setWeighing(null)
     setDone(null)
     setLastId(null)
     setStep('armar')
@@ -284,6 +315,18 @@ export default function Caja({ active, caja, onCajaChange, onLoadNewCode }) {
 
       {toast && <div className={`toast ${toast.type}`}>{toast.text}</div>}
 
+      {weighing && (
+        <PesoDialog
+          key={weighing.product.id}
+          product={weighing.product}
+          initialKg={weighing.initialKg}
+          available={Number(weighing.product.stock)}
+          onConfirm={confirmWeight}
+          onCancel={() => setWeighing(null)}
+          onRemove={weighing.initialKg ? () => removeItem(weighing.product.id) : null}
+        />
+      )}
+
       {notFound && (
         <div className="msg error with-action">
           <span>
@@ -304,7 +347,7 @@ export default function Caja({ active, caja, onCajaChange, onLoadNewCode }) {
               </>
             ) : (
               <>
-                De <b>{noStock.product.name}</b> solo hay {noStock.product.stock}
+                De <b>{noStock.product.name}</b> solo hay {fmtQty(noStock.product.stock, noStock.product.sold_by_weight)}
                 {noStock.inCart > 0 ? ' y ya están en la venta' : ''}.
               </>
             )}
@@ -337,7 +380,10 @@ export default function Caja({ active, caja, onCajaChange, onLoadNewCode }) {
                 }}
               >
                 <span>{p.name}</span>
-                <strong>{fmtMoney(p.sale_price)}</strong>
+                <strong>
+                  {fmtMoney(p.sale_price)}
+                  {p.sold_by_weight ? <small className="muted"> /kg</small> : null}
+                </strong>
               </li>
             ))}
           </ul>
@@ -353,6 +399,9 @@ export default function Caja({ active, caja, onCajaChange, onLoadNewCode }) {
               tocar nada: pasalos directamente.
             </li>
             <li>Se van sumando a la lista. Si pasás dos veces el mismo, suma cantidad.</li>
+            <li>
+              Los fiambres y productos por peso te piden los <b>gramos</b>, los <b>kilos</b> o el <b>importe</b> en $.
+            </li>
             <li>
               Cuando terminás, tocá <b>Cobrar</b>.
             </li>
@@ -372,10 +421,22 @@ export default function Caja({ active, caja, onCajaChange, onLoadNewCode }) {
                 <div className="cart-info">
                   <span>{product.name}</span>
                   <small className="muted">
-                    {fmtMoney(product.sale_price)} c/u · stock {product.stock}
+                    {fmtMoney(product.sale_price)} {product.sold_by_weight ? 'el kg' : 'c/u'} · stock{' '}
+                    {fmtQty(product.stock, product.sold_by_weight)}
                   </small>
                   {isLow({ product, qty }) && <small className="warn">⚠ Stock bajo: {lowText({ product, qty })}</small>}
                 </div>
+                {product.sold_by_weight ? (
+                  <div className="qty">
+                    <button
+                      className="peso-btn"
+                      onClick={() => setWeighing({ product, initialKg: qty })}
+                      aria-label="Cambiar peso"
+                    >
+                      ⚖ {fmtQty(qty, true)}
+                    </button>
+                  </div>
+                ) : (
                 <div className="qty">
                   <button onClick={() => setQty(product.id, qty - 1)} aria-label="Restar">
                     {qty === 1 ? '🗑' : '−'}
@@ -385,7 +446,8 @@ export default function Caja({ active, caja, onCajaChange, onLoadNewCode }) {
                     +
                   </button>
                 </div>
-                <strong className="subtotal">{fmtMoney(product.sale_price * qty)}</strong>
+                )}
+                <strong className="subtotal">{fmtMoney(subtotalOf({ product, qty }))}</strong>
               </li>
             ))}
           </ul>

@@ -15,6 +15,7 @@ export default function ProductForm({ initial = {}, isNew = false, categories = 
     sale_price: initial.sale_price ?? '',
     min_stock: initial.min_stock ?? '',
     stock: initial.stock ?? '',
+    sold_by_weight: initial.sold_by_weight ?? false,
   })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
@@ -23,6 +24,13 @@ export default function ProductForm({ initial = {}, isNew = false, categories = 
 
   const cost = parseNumber(f.cost_price)
   const sale = parseNumber(f.sale_price)
+  const byWeight = f.sold_by_weight
+  // Por peso: kilos con decimales ("2,5"). Por unidad: enteros.
+  const toQty = (v) => {
+    const n = parseNumber(v)
+    if (!Number.isFinite(n) || n < 0) return 0
+    return byWeight ? Math.round(n * 1000) / 1000 : Math.floor(n)
+  }
   const margin = cost > 0 && sale > 0 ? ((sale - cost) / cost) * 100 : null
 
   async function submit(e) {
@@ -34,9 +42,10 @@ export default function ProductForm({ initial = {}, isNew = false, categories = 
       category: f.category.trim() || null,
       cost_price: Number.isFinite(cost) ? cost : 0,
       sale_price: sale,
-      min_stock: parseInt(f.min_stock, 10) || 0,
+      min_stock: toQty(f.min_stock),
+      sold_by_weight: f.sold_by_weight,
     }
-    if (isNew) values.stock = parseInt(f.stock, 10) || 0
+    if (isNew) values.stock = toQty(f.stock)
     if (!values.name) return setError('Falta el nombre')
     if (!Number.isFinite(sale) || sale < 0) return setError('Precio de venta inválido')
 
@@ -77,13 +86,22 @@ export default function ProductForm({ initial = {}, isNew = false, categories = 
           ))}
         </datalist>
       </label>
+      <label className="check">
+        <input
+          type="checkbox"
+          checked={byWeight}
+          onChange={(e) => setF({ ...f, sold_by_weight: e.target.checked })}
+        />
+        ⚖ Se vende por peso (fiambres, quesos, sueltos)
+      </label>
+      {byWeight && <p className="hint">Los precios son por kilo y el stock se cuenta en kilos (ej: 2,5).</p>}
       <div className="row2">
         <label>
-          Precio costo
+          Precio costo{byWeight ? ' (kg)' : ''}
           <input value={f.cost_price} onChange={set('cost_price')} inputMode="decimal" placeholder="0" />
         </label>
         <label>
-          Precio venta *
+          Precio venta{byWeight ? ' x kg' : ''} *
           <input value={f.sale_price} onChange={set('sale_price')} inputMode="decimal" placeholder="0" required />
         </label>
       </div>
@@ -95,13 +113,13 @@ export default function ProductForm({ initial = {}, isNew = false, categories = 
       <div className="row2">
         {isNew && (
           <label>
-            Stock inicial
-            <input value={f.stock} onChange={set('stock')} inputMode="numeric" placeholder="0" />
+            Stock inicial{byWeight ? ' (kg)' : ''}
+            <input value={f.stock} onChange={set('stock')} inputMode={byWeight ? 'decimal' : 'numeric'} placeholder="0" />
           </label>
         )}
         <label>
-          Stock mínimo
-          <input value={f.min_stock} onChange={set('min_stock')} inputMode="numeric" placeholder="0" />
+          Stock mínimo{byWeight ? ' (kg)' : ''}
+          <input value={f.min_stock} onChange={set('min_stock')} inputMode={byWeight ? 'decimal' : 'numeric'} placeholder="0" />
         </label>
       </div>
 

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { errorText, getSales } from '../lib/api'
-import { fmtMoney, fmtTime, METHOD_LABEL } from '../lib/format'
+import { fmtMoney, fmtQty, fmtTime, METHOD_LABEL } from '../lib/format'
 
 
 function todayStr() {
@@ -68,7 +68,7 @@ export default function Ventas({ embedded = false }) {
                 {s.sale_items.map((it) => (
                   <li key={it.id}>
                     <span>
-                      {it.quantity} × {it.name}
+                      {it.sold_by_weight ? `${fmtQty(it.quantity, true)} de` : `${it.quantity} ×`} {it.name}
                     </span>
                     <span>{fmtMoney(it.subtotal)}</span>
                   </li>
