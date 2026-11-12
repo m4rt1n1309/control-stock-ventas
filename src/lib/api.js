@@ -27,6 +27,11 @@ async function fetchAll(buildQuery) {
   }
 }
 
+/** Todas las filas de una tabla (para la copia en Excel). */
+export async function fetchTable(table, order) {
+  return fetchAll(() => supabase.from(table).select('*').order(order).order('id'))
+}
+
 function productsQuery(q) {
   let query = supabase.from('products').select('*').order('name').order('id')
   const clean = q.trim().replace(/[,()%*]/g, ' ').trim()

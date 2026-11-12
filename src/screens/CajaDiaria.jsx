@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import AbrirCaja from '../components/AbrirCaja'
 import CierreMes from '../components/CierreMes'
+import CopiaDatos from '../components/CopiaDatos'
 import ResumenCaja, { DiffRow } from '../components/ResumenCaja'
 import Ventas from './Ventas'
 import {
@@ -37,6 +38,8 @@ export default function CajaDiaria({ caja, onCajaChange }) {
       {view === 'actual' && <CajaActual caja={caja} onCajaChange={onCajaChange} />}
       {view === 'cierres' && <Cierres />}
       {view === 'dias' && <Ventas embedded />}
+
+      <CopiaDatos />
     </div>
   )
 }
