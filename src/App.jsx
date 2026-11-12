@@ -32,13 +32,30 @@ export default function App() {
   }, [])
 
   // Botón "atrás" del celular o del navegador: no sale de la app (para irse está "Salir").
-  // Se agrega una entrada al historial y cada vez que la usan se vuelve a poner.
+  // Se agrega una entrada al historial que "ataja" el atrás. Chrome se saltea las entradas
+  // creadas sin que el usuario haya tocado la página, así que se vuelve a poner con cada toque/tecla.
   useEffect(() => {
     if (!session) return
-    history.pushState({ kiosco: true }, '', location.href)
-    const stay = () => history.pushState({ kiosco: true }, '', location.href)
-    window.addEventListener('popstate', stay)
-    return () => window.removeEventListener('popstate', stay)
+    let armed = false
+    const push = () => history.pushState({ kiosco: true }, '', location.href)
+    const arm = () => {
+      if (armed) return
+      armed = true
+      push()
+    }
+    const onBack = () => {
+      push() // quedarse en la app
+      armed = false // y dejarla lista de nuevo con el próximo toque
+    }
+    push()
+    window.addEventListener('popstate', onBack)
+    window.addEventListener('pointerdown', arm, true)
+    window.addEventListener('keydown', arm, true)
+    return () => {
+      window.removeEventListener('popstate', onBack)
+      window.removeEventListener('pointerdown', arm, true)
+      window.removeEventListener('keydown', arm, true)
+    }
   }, [session?.user?.id])
 
   // Licencia: undefined = cargando, null = sin licencia (sin límite)
