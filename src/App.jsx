@@ -5,6 +5,7 @@ import StockAlert from './components/StockAlert'
 import { APP_NAME, licenseStatus } from './lib/license'
 import { LicenseBanner, LicenseBlocked } from './components/Licencia'
 import Login from './screens/Login'
+import NuevaClave from './screens/NuevaClave'
 import Caja from './screens/Caja'
 import Cargar from './screens/Cargar'
 import Productos from './screens/Productos'
@@ -19,6 +20,8 @@ const TABS = [
 
 export default function App() {
   const [session, setSession] = useState(undefined)
+  // Entró desde el link del mail de "recuperar contraseña": primero tiene que poner una nueva
+  const [recovering, setRecovering] = useState(() => /type=recovery/.test(window.location.hash))
   const [tab, setTab] = useState('vender')
   const [pendingCode, setPendingCode] = useState(null)
   // Caja abierta: undefined = cargando, null = cerrada, objeto = abierta
@@ -27,7 +30,10 @@ export default function App() {
   useEffect(() => {
     if (!configured) return
     supabase.auth.getSession().then(({ data }) => setSession(data.session))
-    const { data } = supabase.auth.onAuthStateChange((_e, s) => setSession(s))
+    const { data } = supabase.auth.onAuthStateChange((event, s) => {
+      if (event === 'PASSWORD_RECOVERY') setRecovering(true)
+      setSession(s)
+    })
     return () => data.subscription.unsubscribe()
   }, [])
 
@@ -143,6 +149,7 @@ export default function App() {
 
   if (session === undefined) return <p className="empty">Cargando…</p>
   if (!session) return <Login />
+  if (recovering) return <NuevaClave onDone={() => setRecovering(false)} />
 
   return (
     <div className="app">
