@@ -358,6 +358,9 @@ input:focus, select:focus { outline: 2px solid var(--primary); outline-offset: -
 .rows > div.warn dt, .rows > div.warn dd { color: #b26b00; }
 .done .resumen { text-align: left; }
 
+.cierre-mes { display: flex; flex-direction: column; gap: 8px; border: 2px solid var(--primary); }
+.cierre-mes h3, .cierre-mes p { margin: 0; }
+
 /* ---------- Licencia / prueba ---------- */
 .app-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 45vw; }
 .license-banner {

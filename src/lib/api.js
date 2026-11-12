@@ -124,6 +124,31 @@ export async function getSales(from, to) {
   )
 }
 
+/** Todas las ventas del período, de la más vieja a la más nueva (sin tope de 1000). */
+export function getAllSales(from, to) {
+  return fetchAll(() =>
+    supabase
+      .from('sales')
+      .select('id, created_at, total, payment_method, sale_items(name, quantity, subtotal, sold_by_weight)')
+      .gte('created_at', from.toISOString())
+      .lt('created_at', to.toISOString())
+      .order('created_at')
+      .order('id'),
+  )
+}
+
+/** Fecha de la venta más vieja anterior a `before`, o null si no hay. */
+export async function getOldestSaleBefore(before) {
+  const rows = check(
+    await supabase.from('sales').select('created_at').lt('created_at', before.toISOString()).order('created_at').limit(1),
+  )
+  return rows[0]?.created_at ?? null
+}
+
+export async function deleteSalesRange(from, to) {
+  return check(await supabase.rpc('delete_sales_range', { p_from: from.toISOString(), p_to: to.toISOString() }))
+}
+
 // ---------- Licencia / prueba ----------
 
 // Devuelve null si no hay licencia (uso sin límite)

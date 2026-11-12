@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import AbrirCaja from '../components/AbrirCaja'
+import CierreMes from '../components/CierreMes'
 import ResumenCaja, { DiffRow } from '../components/ResumenCaja'
 import Ventas from './Ventas'
 import {
@@ -24,6 +25,7 @@ export default function CajaDiaria({ caja, onCajaChange }) {
 
   return (
     <div className="screen">
+      <CierreMes />
       <div className="segmented three">
         {VIEWS.map(([v, label]) => (
           <button key={v} className={view === v ? 'active' : ''} onClick={() => setView(v)}>

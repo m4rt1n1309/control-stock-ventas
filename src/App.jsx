@@ -31,6 +31,16 @@ export default function App() {
     return () => data.subscription.unsubscribe()
   }, [])
 
+  // Botón "atrás" del celular o del navegador: no sale de la app (para irse está "Salir").
+  // Se agrega una entrada al historial y cada vez que la usan se vuelve a poner.
+  useEffect(() => {
+    if (!session) return
+    history.pushState({ kiosco: true }, '', location.href)
+    const stay = () => history.pushState({ kiosco: true }, '', location.href)
+    window.addEventListener('popstate', stay)
+    return () => window.removeEventListener('popstate', stay)
+  }, [session?.user?.id])
+
   // Licencia: undefined = cargando, null = sin licencia (sin límite)
   const [license, setLicense] = useState(undefined)
   const status = licenseStatus(license ?? null)
@@ -47,10 +57,16 @@ export default function App() {
     return () => clearInterval(t)
   }, [session?.user?.id])
 
+  // Si no se pudo consultar (sin internet, sesión vencida) NO se marca como cerrada:
+  // se deja como estaba y se reintenta, para no pedir abrir una caja que ya está abierta.
   const refreshCaja = useCallback(() => {
-    getOpenSession()
-      .then((c) => setCaja(c ?? null))
-      .catch(() => setCaja(null))
+    const ask = (retries) =>
+      getOpenSession()
+        .then((c) => setCaja(c ?? null))
+        .catch(() => {
+          if (retries > 0) setTimeout(() => ask(retries - 1), 3000)
+        })
+    ask(3)
   }, [])
 
   // Recargar el estado de la caja al iniciar sesión y al cambiar de pestaña
