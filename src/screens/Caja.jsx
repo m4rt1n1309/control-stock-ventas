@@ -4,7 +4,7 @@ import AbrirCaja from '../components/AbrirCaja'
 import PesoDialog from '../components/PesoDialog'
 import { errorText, findByBarcode, registerSale, searchProducts } from '../lib/api'
 import { fmtMoney, fmtQty, parseNumber, roundKg } from '../lib/format'
-import { useHardwareScanner } from '../lib/useHardwareScanner'
+import { useHardwareScanner, useUsbScanner } from '../lib/useHardwareScanner'
 
 const METHODS = [
   ['efectivo', '💵', 'Efectivo'],
@@ -23,12 +23,64 @@ const subtotalOf = ({ product, qty }) => Math.round(Number(product.sale_price) *
 const countOf = ({ product, qty }) => (product.sold_by_weight ? 1 : qty)
 
 /**
+ * Con lector USB: en el lugar de la cámara se ve en grande el último producto que se pasó.
+ */
+function LastScanned({ item, onCamera }) {
+  const cameraLink = (
+    <button className="btn link" onClick={onCamera}>
+      📷 Usar la cámara
+    </button>
+  )
+  if (!item) {
+    return (
+      <div className="card last-scan waiting">
+        <div className="last-scan-icon">▮▯▮▮▯▮</div>
+        <strong>Listo para escanear</strong>
+        <p className="muted">Pasá el producto por el lector y aparece acá.</p>
+        {cameraLink}
+      </div>
+    )
+  }
+  const { product, qty } = item
+  const byWeight = product.sold_by_weight
+  return (
+    <div className="card last-scan" key={`${product.id}-${qty}`}>
+      <small className="muted">Último producto</small>
+      <h2>{product.name}</h2>
+      <div className="last-scan-grid">
+        <div>
+          <span>Precio</span>
+          <strong>
+            {fmtMoney(product.sale_price)}
+            {byWeight ? <small> /kg</small> : null}
+          </strong>
+        </div>
+        <div>
+          <span>{byWeight ? 'Peso' : 'Cantidad'}</span>
+          <strong>{byWeight ? fmtQty(qty, true) : qty}</strong>
+        </div>
+        <div>
+          <span>Subtotal</span>
+          <strong>{fmtMoney(subtotalOf(item))}</strong>
+        </div>
+        <div>
+          <span>Stock después</span>
+          <strong className={isLow(item) ? 'warn' : ''}>{fmtQty(remaining(item), byWeight)}</strong>
+        </div>
+      </div>
+      {isLow(item) && <p className="msg error">⚠ Stock bajo: {lowText(item)}</p>}
+      {cameraLink}
+    </div>
+  )
+}
+
+/**
  * Flujo de venta en 3 pasos:
  *  1. armar: escanear / buscar productos (se suman a la lista)
  *  2. cobrar: elegir medio de pago, con cuánto paga, vuelto
  *  3. hecha: confirmación y "Nueva venta"
  */
-export default function Caja({ active, caja, onCajaChange, onLoadNewCode }) {
+export default function Caja({ active, caja, onCajaChange, onSale, onLoadNewCode }) {
   const [step, setStep] = useState('armar')
   const [cart, setCart] = useState([]) // [{ product, qty }]
   const [scanning, setScanning] = useState(false)
@@ -128,6 +180,7 @@ export default function Caja({ active, caja, onCajaChange, onLoadNewCode }) {
   }
 
   useHardwareScanner(addByCode, active && step === 'armar' && Boolean(caja))
+  const usb = useUsbScanner()
 
   // Búsqueda manual por nombre
   useEffect(() => {
@@ -176,6 +229,7 @@ export default function Caja({ active, caja, onCajaChange, onLoadNewCode }) {
       const res = await registerSale(cart, hasPaid ? paidNum : null, method)
       setDone({ id: res.sale_id, total: res.total, change: hasPaid ? paidNum - Number(res.total) : null })
       setStep('hecha')
+      onSale?.()
     } catch (err) {
       setError(errorText(err))
       if (/caja está cerrada/i.test(err?.message || '')) onCajaChange(null)
@@ -307,6 +361,8 @@ export default function Caja({ active, caja, onCajaChange, onLoadNewCode }) {
           onClose={() => setScanning(false)}
           hint="Escaneá los productos uno por uno: cada uno se suma a la lista"
         />
+      ) : usb ? (
+        <LastScanned item={cart.find((i) => i.product.id === lastId)} onCamera={() => setScanning(true)} />
       ) : (
         <button className="btn primary block big" onClick={() => setScanning(true)}>
           📷 {cart.length ? 'Escanear más productos' : 'Escanear productos'}

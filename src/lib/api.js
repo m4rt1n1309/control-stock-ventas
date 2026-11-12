@@ -42,6 +42,16 @@ export function searchAllProducts(q) {
   return fetchAll(() => productsQuery(q))
 }
 
+/** Productos con stock igual o menor al mínimo avisado, los más urgentes primero. */
+export async function getLowStock() {
+  const rows = await fetchAll(() =>
+    supabase.from('products').select('id, name, stock, min_stock, sold_by_weight').order('id'),
+  )
+  return rows
+    .filter((p) => Number(p.stock) <= Number(p.min_stock))
+    .sort((a, b) => a.stock - a.min_stock - (b.stock - b.min_stock) || a.name.localeCompare(b.name))
+}
+
 export async function getCategories() {
   const rows = await fetchAll(() =>
     supabase.from('products').select('category').not('category', 'is', null).order('id'),

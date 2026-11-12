@@ -3,7 +3,7 @@ import Scanner from '../components/Scanner'
 import ProductForm from '../components/ProductForm'
 import ProductDetail from '../components/ProductDetail'
 import { createProduct, errorText, findByBarcode, getCategories, lookupOpenFoodFacts } from '../lib/api'
-import { useHardwareScanner } from '../lib/useHardwareScanner'
+import { useHardwareScanner, useUsbScanner } from '../lib/useHardwareScanner'
 
 /**
  * Escanear un código: si el producto existe muestra la ficha (sumar stock, editar),
@@ -61,6 +61,7 @@ export default function Cargar({ initialCode, onCodeConsumed }) {
   }
 
   useHardwareScanner(lookup, !loading)
+  const usb = useUsbScanner()
 
   async function saveNew(values) {
     const created = await createProduct(values)
@@ -78,6 +79,11 @@ export default function Cargar({ initialCode, onCodeConsumed }) {
     <div className="screen">
       {scanning ? (
         <Scanner onScan={lookup} onClose={() => setScanning(false)} />
+      ) : usb ? (
+        // Con lector USB la cámara queda como opción chica: la pantalla es para la ficha del producto
+        <button className="btn secondary" onClick={() => { reset(); setScanning(true) }}>
+          📷 Usar la cámara
+        </button>
       ) : (
         <button className="btn primary block big" onClick={() => { reset(); setScanning(true) }}>
           📷 {product || draft ? 'Escanear otro' : 'Escanear código'}

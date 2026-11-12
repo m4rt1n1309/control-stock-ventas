@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { configured, supabase } from './lib/supabase'
-import { getLicense, getOpenSession } from './lib/api'
+import { getLicense, getLowStock, getOpenSession } from './lib/api'
+import StockAlert from './components/StockAlert'
 import { APP_NAME, licenseStatus } from './lib/license'
 import { LicenseBanner, LicenseBlocked } from './components/Licencia'
 import Login from './screens/Login'
@@ -60,6 +61,31 @@ export default function App() {
 
   const onCajaChange = (row) => (row ? setCaja(row) : refreshCaja())
 
+  // Avisos de stock bajo: al iniciar, al cambiar de pestaña, después de cada venta y cada 5 minutos
+  const [lowStock, setLowStock] = useState(null)
+  const refreshLowStock = useCallback(() => {
+    getLowStock().then(setLowStock).catch(() => {})
+  }, [])
+  useEffect(() => {
+    if (session) refreshLowStock()
+  }, [session?.user?.id, tab, refreshLowStock])
+  useEffect(() => {
+    if (!session) return
+    const t = setInterval(refreshLowStock, 5 * 60 * 1000)
+    return () => clearInterval(t)
+  }, [session?.user?.id, refreshLowStock])
+
+  // Abrir Productos mostrando solo los de stock bajo (la key nueva lo reinicia aunque ya esté abierto)
+  const [productosView, setProductosView] = useState({ key: 0, lowOnly: false })
+  function goTo(id) {
+    if (id === 'productos') setProductosView((v) => ({ key: v.key + 1, lowOnly: false }))
+    setTab(id)
+  }
+  function showLowStock() {
+    setProductosView((v) => ({ key: v.key + 1, lowOnly: true }))
+    setTab('productos')
+  }
+
   if (!configured) {
     return (
       <div className="login">
@@ -86,6 +112,7 @@ export default function App() {
             {caja ? '● Caja abierta' : '● Caja cerrada'}
           </button>
         )}
+        <StockAlert items={lowStock} onSeeAll={showLowStock} />
         <span className="muted user">{session.user.email}</span>
         <button className="btn small secondary" onClick={() => supabase.auth.signOut()}>
           Salir
@@ -101,6 +128,7 @@ export default function App() {
             active={tab === 'vender' && !blocked}
             caja={caja}
             onCajaChange={onCajaChange}
+            onSale={refreshLowStock}
             onLoadNewCode={(code) => {
               setPendingCode(code)
               setTab('cargar')
@@ -110,13 +138,20 @@ export default function App() {
         {tab === 'cargar' && !blocked && (
           <Cargar initialCode={pendingCode} onCodeConsumed={() => setPendingCode(null)} />
         )}
-        {tab === 'productos' && <Productos readOnly={blocked} />}
+        {tab === 'productos' && (
+          <Productos
+            key={productosView.key}
+            initialLowOnly={productosView.lowOnly}
+            readOnly={blocked}
+            onStockChange={refreshLowStock}
+          />
+        )}
         {tab === 'caja' && <CajaDiaria caja={caja} onCajaChange={onCajaChange} />}
       </main>
 
       <nav className="tabbar">
         {TABS.map(([id, icon, label]) => (
-          <button key={id} className={tab === id ? 'active' : ''} onClick={() => setTab(id)}>
+          <button key={id} className={tab === id ? 'active' : ''} onClick={() => goTo(id)}>
             <span className="tab-icon">{icon}</span>
             {label}
           </button>

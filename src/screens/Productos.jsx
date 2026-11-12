@@ -5,9 +5,9 @@ import { fmtMoney, fmtQty, parseNumber } from '../lib/format'
 
 const SHOW_STEP = 200
 
-export default function Productos({ readOnly = false }) {
+export default function Productos({ readOnly = false, initialLowOnly = false, onStockChange }) {
   const [q, setQ] = useState('')
-  const [lowOnly, setLowOnly] = useState(false)
+  const [lowOnly, setLowOnly] = useState(initialLowOnly)
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -55,10 +55,12 @@ export default function Productos({ readOnly = false }) {
           onChange={(p) => {
             setSelected(p)
             setItems((list) => list.map((i) => (i.id === p.id ? p : i)))
+            onStockChange?.()
           }}
           onDeleted={() => {
             setItems((list) => list.filter((i) => i.id !== selected.id))
             setSelected(null)
+            onStockChange?.()
           }}
           onClose={() => setSelected(null)}
         />

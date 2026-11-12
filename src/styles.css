@@ -251,6 +251,19 @@ input:focus, select:focus { outline: 2px solid var(--primary); outline-offset: -
 .cart > li.just-added { animation: added 1.2s ease-out; }
 @keyframes added { from { background: var(--ok-bg); } to { background: transparent; } }
 
+/* Último producto pasado por el lector USB (ocupa el lugar de la cámara) */
+.last-scan { display: flex; flex-direction: column; gap: 8px; border: 2px solid var(--primary); animation: added 1.2s ease-out; }
+.last-scan h2 { margin: 0; font-size: 1.6rem; line-height: 1.2; }
+.last-scan-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.last-scan-grid > div { background: var(--secondary); border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; }
+.last-scan-grid span { font-size: 0.8rem; color: var(--muted); }
+.last-scan-grid strong { font-size: 1.35rem; }
+.last-scan .msg { margin: 0; }
+.last-scan .btn.link { align-self: flex-start; padding: 0; }
+.last-scan.waiting { align-items: center; text-align: center; border-style: dashed; animation: none; }
+.last-scan.waiting p { margin: 0; }
+.last-scan-icon { font-size: 2rem; letter-spacing: -2px; color: var(--muted); }
+
 .how-to h3 { margin-top: 0; }
 .how-to ol { margin: 0; padding-left: 20px; line-height: 1.6; }
 
@@ -299,6 +312,32 @@ input:focus, select:focus { outline: 2px solid var(--primary); outline-offset: -
 }
 .pill.open { background: var(--ok-bg); color: var(--ok); }
 .pill.closed { background: var(--err-bg); color: var(--err); }
+
+/* ---------- Aviso de stock bajo (barra de arriba) ---------- */
+.stock-alert { position: relative; }
+.pill.low { background: #fff1db; color: #b26b00; }
+.pill.ok { background: var(--secondary); color: var(--muted); }
+.stock-pop {
+  position: absolute; top: calc(100% + 8px); left: 50%; transform: translateX(-50%); z-index: 30;
+  width: min(340px, calc(100vw - 32px));
+  display: flex; flex-direction: column; gap: 8px;
+  box-shadow: 0 10px 30px rgb(0 0 0 / 0.2);
+}
+.stock-pop h3 { margin: 0; font-size: 1rem; }
+.stock-pop p { margin: 0; }
+.stock-pop ul { list-style: none; margin: 0; padding: 0; max-height: 50vh; overflow-y: auto; }
+.stock-pop li {
+  display: flex; justify-content: space-between; gap: 10px; padding: 8px 0;
+  border-top: 1px solid var(--border); cursor: pointer; font-size: 0.9rem;
+}
+.stock-pop li:first-child { border-top: none; }
+.stock-pop li strong { white-space: nowrap; font-size: 0.85rem; }
+.stock-pop .small { font-size: 0.8rem; }
+@media (max-width: 420px) {
+  .pill-text { display: none; }
+  .stock-alert { position: static; }
+  .stock-pop { left: 16px; right: 16px; transform: none; width: auto; top: 54px; position: absolute; }
+}
 
 .expected {
   display: flex; flex-direction: column; align-items: center; gap: 2px;

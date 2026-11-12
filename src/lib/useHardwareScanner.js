@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useSyncExternalStore } from 'react'
 
 const MAX_GAP_MS = 80 // un lector "tipea" mucho más rápido que una persona
 const IDLE_MS = 150 // por si el lector está configurado para no mandar Enter al final
@@ -60,6 +60,39 @@ export function listenForScans(target, onScan) {
   }
 }
 
+// ---------- ¿Este equipo tiene lector USB? ----------
+// Se recuerda desde la primera lectura, así la pantalla se acomoda al lector y no a la cámara.
+const USB_KEY = 'kiosco.lectorUsb'
+let usbSeen = (() => {
+  try {
+    return localStorage.getItem(USB_KEY) === '1'
+  } catch {
+    return false
+  }
+})()
+const usbListeners = new Set()
+
+function markUsbSeen() {
+  if (usbSeen) return
+  usbSeen = true
+  try {
+    localStorage.setItem(USB_KEY, '1')
+  } catch {
+    /* sin almacenamiento: vale solo para esta sesión */
+  }
+  usbListeners.forEach((fn) => fn())
+}
+
+/** true si en este equipo ya se usó un lector USB. */
+export function useUsbScanner() {
+  return useSyncExternalStore(subscribeUsb, () => usbSeen)
+}
+
+function subscribeUsb(fn) {
+  usbListeners.add(fn)
+  return () => usbListeners.delete(fn)
+}
+
 /** Llama a onScan(code) con cada lectura, salvo que haya un formulario de producto abierto. */
 export function useHardwareScanner(onScan, enabled = true) {
   const onScanRef = useRef(onScan)
@@ -68,7 +101,9 @@ export function useHardwareScanner(onScan, enabled = true) {
   useEffect(() => {
     if (!enabled) return
     return listenForScans(window, (code) => {
-      if (!document.querySelector('[data-block-scanner]')) onScanRef.current(code)
+      if (document.querySelector('[data-block-scanner]')) return
+      markUsbSeen()
+      onScanRef.current(code)
     })
   }, [enabled])
 }
