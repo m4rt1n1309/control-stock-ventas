@@ -32,26 +32,34 @@ export default function App() {
   }, [])
 
   // Botón "atrás" del celular o del navegador: no sale de la app (para irse está "Salir").
-  // Se agrega una entrada al historial que "ataja" el atrás. Chrome se saltea las entradas
-  // creadas sin que el usuario haya tocado la página, así que se vuelve a poner con cada toque/tecla.
+  // Se agregan entradas al historial que "atajan" el atrás. Chrome se saltea las entradas
+  // creadas sin que el usuario haya tocado la página, así que se agregan con cada toque/tecla
+  // (hasta 5 de reserva, para aguantar varios "atrás" seguidos).
   useEffect(() => {
     if (!session) return
-    let armed = false
+    const RESERVE = 5
+    let pending = 0
     const push = () => history.pushState({ kiosco: true }, '', location.href)
     const arm = () => {
-      if (armed) return
-      armed = true
+      if (pending >= RESERVE) return
+      pending += 1
       push()
     }
     const onBack = () => {
-      push() // quedarse en la app
-      armed = false // y dejarla lista de nuevo con el próximo toque
+      pending = Math.max(0, pending - 1)
+    }
+    // Si igual se intenta salir de la página (varios "atrás" seguidos), el navegador pregunta antes
+    const confirmExit = (e) => {
+      e.preventDefault()
+      e.returnValue = ''
     }
     push()
+    window.addEventListener('beforeunload', confirmExit)
     window.addEventListener('popstate', onBack)
     window.addEventListener('pointerdown', arm, true)
     window.addEventListener('keydown', arm, true)
     return () => {
+      window.removeEventListener('beforeunload', confirmExit)
       window.removeEventListener('popstate', onBack)
       window.removeEventListener('pointerdown', arm, true)
       window.removeEventListener('keydown', arm, true)
