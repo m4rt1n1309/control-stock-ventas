@@ -307,7 +307,11 @@ export default function Caja({ active, caja, onCajaChange, onSale, onLoadNewCode
               <h3>¿Con cuánto paga?</h3>
               <input
                 value={paid}
-                onChange={(e) => setPaid(e.target.value)}
+                onChange={(e) => {
+                  // Máximo 6 dígitos enteros (y hasta 2 decimales)
+                  const v = e.target.value.replace(/[^\d.,]/g, '')
+                  if (/^\d{0,6}([.,]\d{0,2})?$/.test(v)) setPaid(v)
+                }}
                 inputMode="decimal"
                 placeholder="Monto (opcional)"
               />
