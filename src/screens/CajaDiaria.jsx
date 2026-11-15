@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import AbrirCaja from '../components/AbrirCaja'
 import CierreMes from '../components/CierreMes'
 import CopiaDatos from '../components/CopiaDatos'
+import MasVendidos from '../components/MasVendidos'
 import ResumenCaja, { DiffRow } from '../components/ResumenCaja'
 import Ventas from './Ventas'
 import {
@@ -19,6 +20,7 @@ const VIEWS = [
   ['actual', 'Caja actual'],
   ['cierres', 'Cierres'],
   ['dias', 'Ventas por día'],
+  ['top', 'Más vendido'],
 ]
 
 export default function CajaDiaria({ caja, onCajaChange }) {
@@ -27,7 +29,7 @@ export default function CajaDiaria({ caja, onCajaChange }) {
   return (
     <div className="screen">
       <CierreMes />
-      <div className="segmented three">
+      <div className="segmented">
         {VIEWS.map(([v, label]) => (
           <button key={v} className={view === v ? 'active' : ''} onClick={() => setView(v)}>
             {label}
@@ -38,6 +40,7 @@ export default function CajaDiaria({ caja, onCajaChange }) {
       {view === 'actual' && <CajaActual caja={caja} onCajaChange={onCajaChange} />}
       {view === 'cierres' && <Cierres />}
       {view === 'dias' && <Ventas embedded />}
+      {view === 'top' && <MasVendidos />}
 
       <CopiaDatos />
     </div>

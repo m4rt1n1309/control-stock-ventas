@@ -434,3 +434,12 @@ a.btn { display: inline-block; text-decoration: none; text-align: center; }
 
 /* Calendario del día: angosto para que el selector abra cerca del campo */
 .date-input { width: auto; max-width: 190px; }
+
+/* Lo más vendido */
+.segmented.two { grid-template-columns: repeat(2, 1fr); }
+.list.ranking > li { justify-content: flex-start; padding: 10px 12px; }
+.list.ranking .rank { width: 1.6em; color: var(--muted); font-weight: 600; flex: none; }
+.list.ranking .grow { flex: 1; min-width: 0; }
+.list.ranking strong { flex: none; }
+.date-row { display: flex; align-items: center; gap: 8px; }
+.toolbar { flex-wrap: wrap; }

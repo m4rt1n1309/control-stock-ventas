@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import ProductForm from './ProductForm'
 import { addStock, deleteProduct, errorText, getMovements, updateProduct } from '../lib/api'
-import { fmtDateTime, fmtMoney, fmtQty, parseNumber } from '../lib/format'
+import { expiryInfo, fmtDateTime, fmtMoney, fmtQty, parseNumber } from '../lib/format'
 
 const TYPE_LABEL = { entrada: 'Entrada', venta: 'Venta', ajuste: 'Ajuste' }
 
@@ -10,6 +10,7 @@ export default function ProductDetail({ product, categories, onChange, onDeleted
   const [editing, setEditing] = useState(false)
   const [qty, setQty] = useState('')
   const [note, setNote] = useState('')
+  const [expires, setExpires] = useState('') // vencimiento del lote que entra
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState(null)
   const [movements, setMovements] = useState([])
@@ -28,13 +29,22 @@ export default function ProductDetail({ product, categories, onChange, onDeleted
     setMsg(null)
     try {
       const stock = await addStock(product.id, sign * n, note.trim() || null)
-      onChange({ ...product, stock })
+      let updated = { ...product, stock }
+      if (sign > 0 && expires) {
+        // Se guarda el vencimiento más próximo: si todavía queda mercadería vieja, manda la fecha más cercana
+        const keepOld = Number(product.stock) > 0 && product.expires_on && product.expires_on < expires
+        if (!keepOld && product.expires_on !== expires) {
+          updated = { ...(await updateProduct(product.id, { expires_on: expires })), stock }
+        }
+      }
+      onChange(updated)
       setMsg({
         type: 'ok',
         text: `${sign > 0 ? 'Se sumaron' : 'Se restaron'} ${byWeight ? fmtQty(n, true) : `${n} unidades`}. Stock: ${fmtQty(stock, byWeight)}`,
       })
       setQty('')
       setNote('')
+      setExpires('')
     } catch (err) {
       setMsg({ type: 'error', text: errorText(err) })
     } finally {
@@ -71,6 +81,7 @@ export default function ProductDetail({ product, categories, onChange, onDeleted
   }
 
   const low = product.stock <= product.min_stock
+  const exp = expiryInfo(product.expires_on)
 
   return (
     <div className="card">
@@ -104,6 +115,7 @@ export default function ProductDetail({ product, categories, onChange, onDeleted
         </div>
       </div>
       {low && <p className="msg error">Stock bajo (mínimo {fmtQty(product.min_stock, byWeight)})</p>}
+      {exp && <p className={`msg ${exp.level === 'neg' ? 'error' : 'info'}`}>📅 {exp.text}</p>}
 
       {!readOnly && (
         <>
@@ -117,6 +129,10 @@ export default function ProductDetail({ product, categories, onChange, onDeleted
             />
             <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Nota (opcional)" />
           </div>
+          <label>
+            Vence lo que entra (opcional, solo al sumar)
+            <input type="date" className="date-input" value={expires} onChange={(e) => setExpires(e.target.value)} />
+          </label>
           <div className="actions">
             <button className="btn secondary" onClick={() => changeStock(-1)} disabled={busy}>
               − Restar

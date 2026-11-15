@@ -16,6 +16,7 @@ export default function ProductForm({ initial = {}, isNew = false, categories = 
     min_stock: initial.min_stock ?? '',
     stock: initial.stock ?? '',
     sold_by_weight: initial.sold_by_weight ?? false,
+    expires_on: initial.expires_on ?? '',
   })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
@@ -44,6 +45,7 @@ export default function ProductForm({ initial = {}, isNew = false, categories = 
       sale_price: sale,
       min_stock: toQty(f.min_stock),
       sold_by_weight: f.sold_by_weight,
+      expires_on: f.expires_on || null,
     }
     if (isNew) values.stock = toQty(f.stock)
     if (!values.name) return setError('Falta el nombre')
@@ -122,6 +124,17 @@ export default function ProductForm({ initial = {}, isNew = false, categories = 
           <input value={f.min_stock} onChange={set('min_stock')} inputMode={byWeight ? 'decimal' : 'numeric'} placeholder="0" />
         </label>
       </div>
+      <label>
+        Vence (opcional)
+        <span className="date-row">
+          <input type="date" className="date-input" value={f.expires_on} onChange={set('expires_on')} />
+          {f.expires_on && (
+            <button type="button" className="btn link" onClick={() => setF({ ...f, expires_on: '' })}>
+              Quitar
+            </button>
+          )}
+        </span>
+      </label>
 
       {error && <p className="msg error">{error}</p>}
 

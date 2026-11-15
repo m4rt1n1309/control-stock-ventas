@@ -38,3 +38,30 @@ export function fmtQty(qty, byWeight) {
 
 /** Redondea a gramos para evitar errores de coma flotante (0,1 + 0,2). */
 export const roundKg = (n) => Math.round(n * 1000) / 1000
+
+// ---------- Vencimientos (fecha "AAAA-MM-DD", sin hora) ----------
+
+export const SOON_DAYS = 30 // "por vencer": dentro de estos días
+
+/** "2026-11-20" → "20/11/2026" */
+export function fmtDate(ymd) {
+  if (!ymd) return ''
+  const [y, m, d] = ymd.split('-')
+  return `${d}/${m}/${y}`
+}
+
+/** Días que faltan para la fecha (0 = hoy, negativo = ya venció). */
+export function daysUntil(ymd) {
+  const [y, m, d] = ymd.split('-').map(Number)
+  const now = new Date()
+  return Math.round((new Date(y, m - 1, d) - new Date(now.getFullYear(), now.getMonth(), now.getDate())) / 86400000)
+}
+
+/** Texto corto y nivel de alerta del vencimiento: { text, level: 'neg' | 'warn' | '' } */
+export function expiryInfo(ymd) {
+  if (!ymd) return null
+  const n = daysUntil(ymd)
+  const text =
+    n < 0 ? `Venció el ${fmtDate(ymd)}` : n === 0 ? 'Vence hoy' : n === 1 ? 'Vence mañana' : `Vence el ${fmtDate(ymd)} (${n} días)`
+  return { text, days: n, level: n <= 7 ? 'neg' : n <= SOON_DAYS ? 'warn' : '' }
+}

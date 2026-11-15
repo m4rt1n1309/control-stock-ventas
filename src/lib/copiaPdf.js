@@ -1,6 +1,6 @@
 import { fetchTable } from './api'
 import { APP_NAME } from './license'
-import { fmtDateTime, fmtMoney, fmtQty, METHOD_LABEL } from './format'
+import { fmtDate, fmtDateTime, fmtMoney, fmtQty, METHOD_LABEL } from './format'
 
 const pad = (n) => String(n).padStart(2, '0')
 const fecha = (iso) => (iso ? fmtDateTime(iso) : '')
@@ -67,7 +67,7 @@ export async function downloadBackup(onProgress = () => {}) {
 
   seccion('Productos', products.length)
   tabla(
-    ['Nombre', 'Código', 'Categoría', R('Costo'), R('Venta'), R('Stock'), R('Mínimo')],
+    ['Nombre', 'Código', 'Categoría', R('Costo'), R('Venta'), R('Stock'), R('Mínimo'), 'Vence'],
     products.map((p) => [
       p.name,
       p.barcode || '',
@@ -76,6 +76,7 @@ export async function downloadBackup(onProgress = () => {}) {
       plata(p.sale_price),
       fmtQty(p.stock, p.sold_by_weight),
       fmtQty(p.min_stock, p.sold_by_weight),
+      fmtDate(p.expires_on),
     ]),
     { 3: right, 4: right, 5: right, 6: right },
   )

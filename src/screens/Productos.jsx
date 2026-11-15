@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import ProductDetail from '../components/ProductDetail'
 import { errorText, getCategories, searchAllProducts, updatePricesByPercent } from '../lib/api'
-import { fmtMoney, fmtQty, parseNumber } from '../lib/format'
+import { expiryInfo, fmtMoney, fmtQty, parseNumber, SOON_DAYS } from '../lib/format'
 
 const SHOW_STEP = 200
 
 export default function Productos({ readOnly = false, initialLowOnly = false, onStockChange }) {
   const [q, setQ] = useState('')
   const [lowOnly, setLowOnly] = useState(initialLowOnly)
+  const [expOnly, setExpOnly] = useState(false)
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -39,7 +40,7 @@ export default function Productos({ readOnly = false, initialLowOnly = false, on
 
   useEffect(() => {
     setVisible(SHOW_STEP)
-  }, [q, lowOnly])
+  }, [q, lowOnly, expOnly])
 
   useEffect(() => {
     getCategories().then(setCategories).catch(() => {})
@@ -68,7 +69,12 @@ export default function Productos({ readOnly = false, initialLowOnly = false, on
     )
   }
 
-  const shown = lowOnly ? items.filter((p) => p.stock <= p.min_stock) : items
+  // Por vencer: con stock y que vencen dentro de SOON_DAYS días (o ya vencidos), el más próximo primero
+  const expiring = items
+    .filter((p) => p.expires_on && Number(p.stock) > 0 && expiryInfo(p.expires_on).days <= SOON_DAYS)
+    .sort((a, b) => a.expires_on.localeCompare(b.expires_on))
+  let shown = lowOnly ? items.filter((p) => p.stock <= p.min_stock) : items
+  if (expOnly) shown = expiring.filter((p) => !lowOnly || p.stock <= p.min_stock)
   const lowCount = items.filter((p) => p.stock <= p.min_stock).length
 
   return (
@@ -79,6 +85,10 @@ export default function Productos({ readOnly = false, initialLowOnly = false, on
         <label className="check">
           <input type="checkbox" checked={lowOnly} onChange={(e) => setLowOnly(e.target.checked)} />
           Stock bajo {lowCount > 0 && <span className="badge">{lowCount}</span>}
+        </label>
+        <label className="check">
+          <input type="checkbox" checked={expOnly} onChange={(e) => setExpOnly(e.target.checked)} />
+          Por vencer {expiring.length > 0 && <span className="badge">{expiring.length}</span>}
         </label>
         {!readOnly && (
           <button className="btn small secondary" onClick={() => setShowBulk(!showBulk)}>
@@ -99,7 +109,9 @@ export default function Productos({ readOnly = false, initialLowOnly = false, on
 
       {error && <p className="msg error">{error}</p>}
       {loading && !items.length && <p className="empty">Cargando…</p>}
-      {!loading && !shown.length && <p className="empty">No hay productos</p>}
+      {!loading && !shown.length && (
+        <p className="empty">{expOnly ? `No hay productos que venzan en los próximos ${SOON_DAYS} días` : 'No hay productos'}</p>
+      )}
 
       <ul className="list products">
         {shown.slice(0, visible).map((p) => (
@@ -110,6 +122,9 @@ export default function Productos({ readOnly = false, initialLowOnly = false, on
                 {p.category || 'Sin categoría'} · {fmtMoney(p.sale_price)}
                 {p.sold_by_weight ? ' /kg' : ''}
               </small>
+              {p.expires_on && (expOnly || expiryInfo(p.expires_on).level) && (
+                <small className={expiryInfo(p.expires_on).level}>📅 {expiryInfo(p.expires_on).text}</small>
+              )}
             </div>
             <strong className={p.stock <= p.min_stock ? 'neg' : ''}>{fmtQty(p.stock, p.sold_by_weight)}</strong>
           </li>
