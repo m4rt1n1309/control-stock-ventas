@@ -431,3 +431,6 @@ a.btn { display: inline-block; text-decoration: none; text-align: center; }
 .peso-input input { font-size: 1.6rem; text-align: center; font-weight: 600; }
 .peso-input span { font-size: 1.3rem; color: var(--muted); }
 .qty .peso-btn { width: auto; border-radius: 99px; padding: 0 12px; font-size: 0.9rem; font-weight: 600; }
+
+/* Calendario del día: angosto para que el selector abra cerca del campo */
+.date-input { width: auto; max-width: 190px; }

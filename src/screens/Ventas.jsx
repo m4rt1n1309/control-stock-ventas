@@ -35,7 +35,7 @@ export default function Ventas({ embedded = false }) {
 
   return (
     <div className={embedded ? "stack" : "screen"}>
-      <input type="date" value={day} onChange={(e) => setDay(e.target.value)} max={todayStr()} />
+      <input type="date" className="date-input" value={day} onChange={(e) => setDay(e.target.value)} max={todayStr()} />
 
       <div className="card">
         <div className="total">

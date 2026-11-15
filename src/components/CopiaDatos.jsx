@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { errorText } from '../lib/api'
-import { downloadBackup } from '../lib/copiaExcel'
+import { downloadBackup } from '../lib/copiaPdf'
 
-/** Botón para bajar un Excel con todos los datos del negocio. */
+/** Botón para bajar un PDF con todos los datos del negocio. */
 export default function CopiaDatos() {
   const [step, setStep] = useState(null) // hoja que se está armando
   const [msg, setMsg] = useState(null)
@@ -25,10 +25,10 @@ export default function CopiaDatos() {
     <div className="card">
       <h3>💾 Copia de los datos</h3>
       <p className="muted">
-        Bajá un Excel con todos tus productos, ventas, cajas y movimientos, para tenerlo guardado por las dudas.
+        Bajá un PDF con todos tus productos, ventas, cajas y movimientos, para tenerlo guardado por las dudas.
       </p>
       <button className="btn secondary block" onClick={download} disabled={Boolean(step)}>
-        {step ? `Armando la copia… (${step})` : '⬇ Descargar copia en Excel'}
+        {step ? `Armando la copia… (${step})` : '⬇ Descargar copia en PDF'}
       </button>
       {msg && <p className={`msg ${msg.type}`}>{msg.text}</p>}
     </div>
